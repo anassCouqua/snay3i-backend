@@ -129,7 +129,23 @@ SEED = [
   {"name":"Menuisier Agadir","service":"carpenter","city":"Agadir","rating":4.6,"reviews":39,"verified":False,"bio":"Menuisier Agadir. Aluminium, PVC, bois. Cuisine, placards, fenetres, portes sur mesure.","tags":["Aluminium","PVC","Sur mesure"],"phone":"0686-789012","whatsapp":"212686789012","address":"Agadir","years_exp":8},
 ]
 
-def seed_db():
+def seed_db()
+import threading
+import urllib.request
+import time
+
+def keep_alive():
+    while True:
+        try:
+            urllib.request.urlopen('https://snay3i-backend.onrender.com/')
+            print("Keep-alive ping sent!")
+        except:
+            pass
+        time.sleep(840)  # ping every 14 minutes
+
+thread = threading.Thread(target=keep_alive, daemon=True)
+thread.start()
+:
     db = SessionLocal()
     try:
         if db.query(Worker).count() == 0:
@@ -143,6 +159,22 @@ def seed_db():
         db.close()
 
 seed_db()
+import threading
+import urllib.request
+import time
+
+def keep_alive():
+    while True:
+        try:
+            urllib.request.urlopen('https://snay3i-backend.onrender.com/')
+            print("Keep-alive ping sent!")
+        except:
+            pass
+        time.sleep(840)  # ping every 14 minutes
+
+thread = threading.Thread(target=keep_alive, daemon=True)
+thread.start()
+
 
 def serialize(w):
     return WorkerOut(id=w.id, name=w.name, service=w.service, city=w.city,
