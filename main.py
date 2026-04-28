@@ -5,9 +5,6 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from pydantic import BaseModel
 from typing import Optional
 import json
-import threading
-import urllib.request
-import time
 
 DATABASE_URL = "sqlite:///./snay3i.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -132,12 +129,7 @@ SEED = [
   {"name":"Menuisier Agadir","service":"carpenter","city":"Agadir","rating":4.6,"reviews":39,"verified":False,"bio":"Menuisier Agadir. Aluminium, PVC, bois. Cuisine, placards, fenetres, portes sur mesure.","tags":["Aluminium","PVC","Sur mesure"],"phone":"0686-789012","whatsapp":"212686789012","address":"Agadir","years_exp":8},
 ]
 
-def seed_db()
-
-def keep_alive():
-    while True:
-        try:
-            urllib.request.urlopen("https://snay3i-backend.onrender.com/")
+def seed_db():
         except: pass
         time.sleep(840)
 
@@ -158,14 +150,6 @@ threading.Thread(target=keep_alive, daemon=True).start()
 
 seed_db()
 
-def keep_alive():
-    while True:
-        try:
-            urllib.request.urlopen("https://snay3i-backend.onrender.com/")
-        except: pass
-        time.sleep(840)
-
-threading.Thread(target=keep_alive, daemon=True).start()
 
 
 
