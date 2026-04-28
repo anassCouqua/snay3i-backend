@@ -142,6 +142,18 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
+
+import threading, urllib.request, time
+
+def keep_alive():
+    while True:
+        try:
+            urllib.request.urlopen('https://snay3i-backend.onrender.com/')
+        except: pass
+        time.sleep(840)
+
+threading.Thread(target=keep_alive, daemon=True).start()
+
 import threading
 import urllib.request
 import time
@@ -171,6 +183,18 @@ thread.start()
         db.close()
 
 seed_db()
+
+import threading, urllib.request, time
+
+def keep_alive():
+    while True:
+        try:
+            urllib.request.urlopen('https://snay3i-backend.onrender.com/')
+        except: pass
+        time.sleep(840)
+
+threading.Thread(target=keep_alive, daemon=True).start()
+
 
 import threading, urllib.request, time
 
