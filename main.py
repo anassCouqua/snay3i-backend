@@ -5,6 +5,9 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from pydantic import BaseModel
 from typing import Optional
 import json
+import threading
+import urllib.request
+import time
 
 DATABASE_URL = "sqlite:///./snay3i.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -131,44 +134,15 @@ SEED = [
 
 def seed_db()
 
-import threading, urllib.request, time
-
 def keep_alive():
     while True:
         try:
-            urllib.request.urlopen('https://snay3i-backend.onrender.com/')
+            urllib.request.urlopen("https://snay3i-backend.onrender.com/")
         except: pass
         time.sleep(840)
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
-
-import threading, urllib.request, time
-
-def keep_alive():
-    while True:
-        try:
-            urllib.request.urlopen('https://snay3i-backend.onrender.com/')
-        except: pass
-        time.sleep(840)
-
-threading.Thread(target=keep_alive, daemon=True).start()
-
-import threading
-import urllib.request
-import time
-
-def keep_alive():
-    while True:
-        try:
-            urllib.request.urlopen('https://snay3i-backend.onrender.com/')
-            print("Keep-alive ping sent!")
-        except:
-            pass
-        time.sleep(840)  # ping every 14 minutes
-
-thread = threading.Thread(target=keep_alive, daemon=True)
-thread.start()
 :
     db = SessionLocal()
     try:
@@ -184,44 +158,15 @@ thread.start()
 
 seed_db()
 
-import threading, urllib.request, time
-
 def keep_alive():
     while True:
         try:
-            urllib.request.urlopen('https://snay3i-backend.onrender.com/')
+            urllib.request.urlopen("https://snay3i-backend.onrender.com/")
         except: pass
         time.sleep(840)
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
-
-import threading, urllib.request, time
-
-def keep_alive():
-    while True:
-        try:
-            urllib.request.urlopen('https://snay3i-backend.onrender.com/')
-        except: pass
-        time.sleep(840)
-
-threading.Thread(target=keep_alive, daemon=True).start()
-
-import threading
-import urllib.request
-import time
-
-def keep_alive():
-    while True:
-        try:
-            urllib.request.urlopen('https://snay3i-backend.onrender.com/')
-            print("Keep-alive ping sent!")
-        except:
-            pass
-        time.sleep(840)  # ping every 14 minutes
-
-thread = threading.Thread(target=keep_alive, daemon=True)
-thread.start()
 
 
 def serialize(w):
