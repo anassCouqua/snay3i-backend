@@ -46,7 +46,7 @@ class WorkerCreate(BaseModel):
 
 app = FastAPI(title="Snay3i.ma API", version="1.0.0")
 app.add_middleware(CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000","http://localhost:5173"],
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 def get_db():
@@ -130,12 +130,6 @@ SEED = [
 ]
 
 def seed_db():
-        except: pass
-        time.sleep(840)
-
-threading.Thread(target=keep_alive, daemon=True).start()
-
-:
     db = SessionLocal()
     try:
         if db.query(Worker).count() == 0:
@@ -149,9 +143,6 @@ threading.Thread(target=keep_alive, daemon=True).start()
         db.close()
 
 seed_db()
-
-
-
 
 def serialize(w):
     return WorkerOut(id=w.id, name=w.name, service=w.service, city=w.city,
