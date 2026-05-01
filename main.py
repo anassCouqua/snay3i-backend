@@ -46,7 +46,7 @@ class WorkerCreate(BaseModel):
 
 app = FastAPI(title="Snay3i.ma API", version="1.0.0")
 app.add_middleware(CORSMiddleware,
-    allow_origins=["http://localhost:3000","http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 def get_db():
