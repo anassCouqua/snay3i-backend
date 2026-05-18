@@ -221,3 +221,40 @@ def send_message(data: MessageIn, db: Session = Depends(get_db)):
     )
     db.add(msg); db.commit(); db.refresh(msg)
     return msg
+
+# ── REVIEWS ──────────────────────────────────────────────────────
+class Review(Base):
+    __tablename__ = "reviews"
+    id = Column(Integer, primary_key=True, index=True)
+    worker_id = Column(Integer, nullable=False)
+    author = Column(String, nullable=False)
+    rating = Column(Integer, nullable=False)
+    comment = Column(String, nullable=False)
+    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+
+class ReviewIn(BaseModel):
+    worker_id: int
+    author: str
+    rating: int
+    comment: str
+
+class ReviewOut(BaseModel):
+    id: int
+    worker_id: int
+    author: str
+    rating: int
+    comment: str
+    created_at: str
+    class Config: from_attributes = True
+
+@app.get("/reviews/{worker_id}", response_model=list[ReviewOut])
+def get_reviews(worker_id: int, db: Session = Depends(get_db)):
+    return db.query(Review).filter(Review.worker_id == worker_id).order_by(Review.id.desc()).all()
+
+@app.post("/reviews", response_model=ReviewOut, status_code=201)
+def add_review(data: ReviewIn, db: Session = Depends(get_db)):
+    review = Review(**data.dict())
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    return review
