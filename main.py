@@ -1155,3 +1155,8 @@ Instructions:
         return {"text": response.content[0].text.strip(), "source": "ai"}
     except Exception:
         return {"text": random.choice(FALLBACK_REPLIES), "source": "fallback"}
+
+@app.get("/ping")
+@app.head("/ping")
+def ping():
+    return {"status": "ok"}
