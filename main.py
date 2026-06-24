@@ -997,6 +997,30 @@ def create_worker(data: WorkerCreate, db: Session = Depends(get_db)):
     w = Worker(**d); db.add(w); db.commit(); db.refresh(w)
     return serialize(w)
 
+
+@app.post("/admin/fix-verified-once")
+def fix_verified_once(db: Session = Depends(get_db)):
+    """
+    One-time migration: unmark 'verified' on auto-generated workers.
+    Auto-generated workers have a hyphen in their phone number (e.g. 0661-010528).
+    Real scraped workers have plain phone numbers with no hyphen.
+    DELETE THIS ENDPOINT after running it once.
+    """
+    workers = db.query(Worker).filter(Worker.verified == True).all()
+    fixed = 0
+    for w in workers:
+        if "-" in (w.phone or ""):
+            w.verified = False
+            fixed += 1
+    db.commit()
+    total_verified_before = len(workers)
+    return {
+        "status": "done",
+        "total_were_verified": total_verified_before,
+        "unmarked_as_synthetic": fixed,
+        "remaining_real_verified": total_verified_before - fixed
+    }
+
 @app.delete("/workers/{wid}", status_code=204)
 def delete_worker(wid: int, db: Session = Depends(get_db)):
     w = db.query(Worker).filter(Worker.id == wid).first()
