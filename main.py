@@ -7,8 +7,12 @@ from typing import Optional
 import json
 import os
 
-DATABASE_URL = "sqlite:///./snay3i.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+import os
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./snay3i.db")
+if DATABASE_URL.startswith("postgres"):
+    engine = create_engine(DATABASE_URL)
+else:
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase):
