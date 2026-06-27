@@ -1032,25 +1032,6 @@ def db_check():
     masked = url_str.split('@')[0].split('://')[0] + '://...@' + url_str.split('@')[-1] if '@' in url_str else url_str
     return {"engine_dialect": engine.dialect.name, "masked_url": masked}
 
-
-@app.post("/admin/remove-synthetic-once")
-def remove_synthetic_once(db: Session = Depends(get_db)):
-    """
-    One-time cleanup: removes all auto-generated synthetic workers
-    (identified by hyphenated phone format e.g. 0661-010528, the seed pattern).
-    Real scraped workers use plain 10-digit phone numbers with no hyphen.
-    DELETE THIS ENDPOINT after running it once.
-    """
-    workers = db.query(Worker).all()
-    removed = 0
-    for w in workers:
-        if "-" in (w.phone or ""):
-            db.delete(w)
-            removed += 1
-    db.commit()
-    remaining = db.query(Worker).count()
-    return {"status": "done", "removed_synthetic": removed, "remaining_real": remaining}
-
 @app.delete("/workers/{wid}", status_code=204)
 def delete_worker(wid: int, db: Session = Depends(get_db)):
     w = db.query(Worker).filter(Worker.id == wid).first()
