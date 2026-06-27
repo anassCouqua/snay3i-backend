@@ -1025,6 +1025,13 @@ def fix_verified_once(db: Session = Depends(get_db)):
         "remaining_real_verified": total_verified_before - fixed
     }
 
+
+@app.get("/admin/db-check")
+def db_check():
+    url_str = str(engine.url)
+    masked = url_str.split('@')[0].split('://')[0] + '://...@' + url_str.split('@')[-1] if '@' in url_str else url_str
+    return {"engine_dialect": engine.dialect.name, "masked_url": masked}
+
 @app.delete("/workers/{wid}", status_code=204)
 def delete_worker(wid: int, db: Session = Depends(get_db)):
     w = db.query(Worker).filter(Worker.id == wid).first()
