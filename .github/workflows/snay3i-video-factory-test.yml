@@ -1,4 +1,4 @@
-name: Snay3i Video Factory v2
+name: Snay3i Video Factory v2.1
 
 on:
   workflow_dispatch:
@@ -45,11 +45,12 @@ jobs:
           pip install "habibi-tts==0.1.1" soundfile huggingface_hub vocos accelerate safetensors
           pip install -r tools/video_factory/requirements.txt
 
-      - name: Download real Snay3i brand + high-resolution visuals
+      - name: Download live Snay3i logo + high-resolution visuals
         run: |
           mkdir -p output/assets
+          # This is the logo actually used by the live Snay3i frontend header.
           curl -L --fail --retry 3 \
-            "https://raw.githubusercontent.com/anassCouqua/snay3i-frontend/main/public/logo512.png" \
+            "https://raw.githubusercontent.com/anassCouqua/snay3i-frontend/main/public/logo.png" \
             -o output/assets/snay3i-logo.png
           curl -L --fail --retry 3 \
             "https://images.pexels.com/photos/3787025/pexels-photo-3787025.jpeg?cs=srgb&dl=pexels-chuck-3787025.jpg&fm=jpg" \
@@ -71,25 +72,27 @@ jobs:
             --speed "0.93" \
             --output output/snay3i-short-01-voice.wav
 
-      - name: Render premium 1080x1920 Short
+      - name: Render branded premium 1080x1920 Short
         run: |
           python tools/video_factory/render_short_v2.py \
             --script tools/video_factory/short_01_plumber_v2.json \
             --audio output/snay3i-short-01-voice.wav \
             --assets output/assets \
             --logo output/assets/snay3i-logo.png \
-            --output output/snay3i-short-01-plumber-casablanca-v2.mp4
+            --output output/snay3i-short-01-plumber-casablanca-v2-1.mp4
           ffprobe -v error \
             -show_entries stream=width,height,codec_name \
             -show_entries format=duration,size \
             -of default=noprint_wrappers=1 \
-            output/snay3i-short-01-plumber-casablanca-v2.mp4
+            output/snay3i-short-01-plumber-casablanca-v2-1.mp4
 
-      - name: Upload Snay3i v2 Short
+      - name: Upload Snay3i v2.1 Short
         uses: actions/upload-artifact@v4
         with:
-          name: snay3i-video-factory-v2-short-01
+          name: snay3i-video-factory-v2-1-short-01
           path: |
-            output/snay3i-short-01-plumber-casablanca-v2.mp4
+            output/snay3i-short-01-plumber-casablanca-v2-1.mp4
             output/snay3i-short-01-voice.wav
+            output/assets/snay3i-logo.png
+            output/video_factory_v2/scene_*.jpg
           retention-days: 7
