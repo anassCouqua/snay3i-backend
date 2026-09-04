@@ -1,40 +1,40 @@
 {
-  "id": "short_01_plumber_casablanca_v2_1",
+  "id": "short_01_plumber_casablanca_v22",
   "language": "darija",
   "format": "1080x1920",
-  "voice_text": "واش كتقلب على بلومبي مزيان فكازا وما عارفش منين تبدا؟ ما تبقاش كتقلب بالعشوائية. دخل لصنايعي بوان إم أَ، شوف البروفايلات، قارن، وتاصل مع الحرفي اللي قريب ليك.",
+  "voice_text": "واش عندك تسرب فالما فكازا وما عارفش منين تبدا؟ ما تضيعش الوقت. دخل لصنايعي بوان إم أَ، قلب على بلومبي قريب ليك، شوف البروفايلات، وقارن قبل ما تتاصل.",
   "scenes": [
     {
       "eyebrow": "تسرّب فالدار؟",
       "headline": "الما كيسيل وما عارف منين جا؟",
       "body": "المشكل الصغير يقدر يكبر بسرعة.",
-      "background": "leak.jpg",
-      "focus_x": 0.52,
+      "background": "leak1.jpg",
+      "focus_x": 0.50,
       "focus_y": 0.48
     },
     {
-      "eyebrow": "فكازا",
+      "eyebrow": "كازا",
       "headline": "كتقلب على بلومبي مزيان؟",
-      "body": "ما تبقاش كتقلب بالعشوائية وبلا نتيجة.",
-      "background": "plumber.jpg",
-      "focus_x": 0.46,
-      "focus_y": 0.45
+      "body": "قلب على الحرفي اللي قريب ليك وبلا صداع.",
+      "background": "repair1.jpg",
+      "focus_x": 0.50,
+      "focus_y": 0.50
     },
     {
       "eyebrow": "اختيار أسهل",
       "headline": "شوف البروفايلات وقارن",
       "body": "قارن المعلومات وتاصل مباشرة مع الحرفي.",
-      "background": "plumber.jpg",
-      "focus_x": 0.60,
-      "focus_y": 0.42
+      "background": "repair2.jpg",
+      "focus_x": 0.50,
+      "focus_y": 0.48
     },
     {
       "eyebrow": "الحرفي قريب ليك",
       "headline": "Snay3i.ma",
       "body": "قلب. قارن. تاصل.",
-      "background": "leak.jpg",
-      "focus_x": 0.48,
-      "focus_y": 0.40
+      "background": "leak2.jpg",
+      "focus_x": 0.50,
+      "focus_y": 0.46
     }
   ]
 }
