@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import math
 import shutil
 import subprocess
 from pathlib import Path
@@ -17,7 +16,6 @@ BG_BOTTOM = (29, 67, 82)
 CREAM = (248, 245, 237)
 MINT = (77, 214, 180)
 GOLD = (242, 190, 92)
-SOFT = (202, 218, 222)
 DARK = (12, 23, 35)
 
 
@@ -29,7 +27,6 @@ def run(cmd):
 def rtl(text: str) -> str:
     if not text:
         return text
-    # Render Arabic correctly even when Pillow/RAQM availability differs by runner.
     return get_display(arabic_reshaper.reshape(text))
 
 
@@ -54,30 +51,25 @@ def fit_font(draw, text, font_path, max_size, min_size, max_width):
 
 def gradient():
     img = Image.new('RGB', (W, H), BG_TOP)
-    px = img.load()
+    draw = ImageDraw.Draw(img)
     for y in range(H):
         t = y / (H - 1)
-        r = round(BG_TOP[0] * (1-t) + BG_BOTTOM[0] * t)
-        g = round(BG_TOP[1] * (1-t) + BG_BOTTOM[1] * t)
-        b = round(BG_TOP[2] * (1-t) + BG_BOTTOM[2] * t)
-        for x in range(W):
-            px[x, y] = (r, g, b)
+        color = tuple(round(BG_TOP[i] * (1-t) + BG_BOTTOM[i] * t) for i in range(3))
+        draw.line((0, y, W, y), fill=color)
     return img
 
 
-def draw_brand(draw, latin_bold):
-    draw.rounded_rectangle((62, 72, 344, 150), radius=38, fill=(248, 245, 237))
-    draw.text((203, 112), 'SNAY3I.MA', font=latin_bold, fill=DARK, anchor='mm')
+def draw_brand(draw, font):
+    draw.rounded_rectangle((62, 72, 344, 150), radius=38, fill=CREAM)
+    draw.text((203, 112), 'SNAY3I.MA', font=font, fill=DARK, anchor='mm')
     draw.rounded_rectangle((875, 78, 1015, 140), radius=28, fill=MINT)
-    draw.text((945, 109), 'MA', font=latin_bold, fill=DARK, anchor='mm')
+    draw.text((945, 109), 'MA', font=font, fill=DARK, anchor='mm')
 
 
 def icon_drop(draw, box):
     x1, y1, x2, y2 = box
     cx = (x1+x2)//2
-    top = y1+20
-    bottom = y2-15
-    pts = [(cx, top), (x2-25, y1+145), (x2-8, y1+230), (cx, bottom), (x1+8, y1+230), (x1+25, y1+145)]
+    pts = [(cx, y1+20), (x2-25, y1+145), (x2-8, y1+230), (cx, y2-15), (x1+8, y1+230), (x1+25, y1+145)]
     draw.polygon(pts, fill=MINT)
     draw.ellipse((x1+28, y1+170, x2-28, y2-22), fill=MINT)
     draw.ellipse((cx-38, y1+188, cx+8, y1+236), fill=(230,255,249))
@@ -109,59 +101,63 @@ def draw_icon(draw, kind, box):
     {'drop': icon_drop, 'pin': icon_pin, 'check': icon_check, 'phone': icon_phone}.get(kind, icon_check)(draw, box)
 
 
-def render_scene(scene, idx, out_path, arabic_regular, arabic_bold, latin_bold):
+def wrap_arabic(draw, logical_text, font, max_width):
+    words = logical_text.split()
+    lines, current = [], []
+    for word in words:
+        candidate = ' '.join(current + [word])
+        shaped = rtl(candidate)
+        box = draw.textbbox((0, 0), shaped, font=font)
+        if box[2] - box[0] > max_width and current:
+            lines.append(rtl(' '.join(current)))
+            current = [word]
+        else:
+            current.append(word)
+    if current:
+        lines.append(rtl(' '.join(current)))
+    return lines
+
+
+def render_scene(scene, idx, out_path, arabic_regular_path, arabic_bold_path, latin_bold_path):
     img = gradient()
     draw = ImageDraw.Draw(img)
-    draw_brand(draw, latin_bold)
+    brand_font = ImageFont.truetype(latin_bold_path, 38)
+    footer_font = ImageFont.truetype(latin_bold_path, 44)
+    draw_brand(draw, brand_font)
 
-    # Decorative geometry for a premium vertical social look.
     draw.ellipse((-170, 1350, 430, 1950), fill=(21, 81, 92))
     draw.ellipse((790, 210, 1190, 610), fill=(31, 92, 97))
-    draw.rounded_rectangle((72, 315, 1008, 1510), radius=62, fill=(247, 244, 235))
-
+    draw.rounded_rectangle((72, 315, 1008, 1510), radius=62, fill=CREAM)
     draw_icon(draw, scene.get('icon', 'check'), (390, 380, 690, 680))
 
     eyebrow = rtl(scene.get('eyebrow', ''))
     headline = scene.get('headline', '')
-    body = rtl(scene.get('body', ''))
+    body_logical = scene.get('body', '')
 
-    eyebrow_font = fit_font(draw, eyebrow, arabic_bold, 58, 38, 780)
+    eyebrow_font = fit_font(draw, eyebrow, arabic_bold_path, 58, 38, 780)
     draw.rounded_rectangle((190, 740, 890, 835), radius=44, fill=(230, 242, 239))
     draw.text((540, 787), eyebrow, font=eyebrow_font, fill=(17, 73, 77), anchor='mm')
 
     if any('\u0600' <= ch <= '\u06ff' for ch in headline):
-        htxt = rtl(headline)
-        hfont = fit_font(draw, htxt, arabic_bold, 104, 66, 820)
+        headline_text = rtl(headline)
+        headline_font = fit_font(draw, headline_text, arabic_bold_path, 104, 66, 820)
     else:
-        htxt = headline
-        hfont = fit_font(draw, htxt, latin_bold, 104, 66, 820)
-    draw.text((540, 990), htxt, font=hfont, fill=DARK, anchor='mm', align='center')
+        headline_text = headline
+        headline_font = fit_font(draw, headline_text, latin_bold_path, 104, 66, 820)
+    draw.text((540, 990), headline_text, font=headline_font, fill=DARK, anchor='mm', align='center')
 
-    bfont = fit_font(draw, body, arabic_regular, 58, 40, 780)
-    # Wrap on Arabic words using approximate chunks.
-    words = body.split()
-    lines, line = [], []
-    for word in words:
-        test = ' '.join(line + [word])
-        box = draw.textbbox((0, 0), test, font=bfont)
-        if box[2]-box[0] > 760 and line:
-            lines.append(' '.join(line))
-            line = [word]
-        else:
-            line.append(word)
-    if line:
-        lines.append(' '.join(line))
+    body_probe = rtl(body_logical)
+    body_font = fit_font(draw, body_probe, arabic_regular_path, 58, 40, 780)
     y = 1165
-    for ln in lines[:3]:
-        draw.text((540, y), ln, font=bfont, fill=(71, 91, 100), anchor='mm')
+    for line in wrap_arabic(draw, body_logical, body_font, 760)[:3]:
+        draw.text((540, y), line, font=body_font, fill=(71, 91, 100), anchor='mm')
         y += 78
 
-    # Footer CTA rail.
     draw.rounded_rectangle((92, 1580, 988, 1760), radius=52, fill=(14, 31, 42))
-    draw.text((160, 1668), f'{idx+1:02d}', font=latin_bold, fill=MINT, anchor='lm')
-    draw.text((540, 1660), 'Snay3i.ma', font=latin_bold, fill=CREAM, anchor='mm')
+    draw.text((160, 1668), f'{idx+1:02d}', font=footer_font, fill=MINT, anchor='lm')
+    draw.text((540, 1660), 'Snay3i.ma', font=footer_font, fill=CREAM, anchor='mm')
     draw.rounded_rectangle((780, 1622, 936, 1708), radius=40, fill=GOLD)
-    draw.text((858, 1665), '→', font=latin_bold, fill=DARK, anchor='mm')
+    draw.text((858, 1665), '→', font=footer_font, fill=DARK, anchor='mm')
 
     img.save(out_path, quality=95)
 
@@ -190,13 +186,12 @@ def main():
     arabic_regular = find_font(['NotoSansArabic-Regular.ttf', 'NotoNaskhArabic-Regular.ttf'])
     arabic_bold = find_font(['NotoSansArabic-Bold.ttf', 'NotoNaskhArabic-Bold.ttf'])
     latin_bold = find_font(['NotoSans-Bold.ttf', 'DejaVuSans-Bold.ttf'])
-    latin_brand = ImageFont.truetype(latin_bold, 38)
 
     frames = []
     for i, scene in enumerate(data['scenes']):
-        p = work / f'scene_{i+1}.png'
-        render_scene(scene, i, p, arabic_regular, arabic_bold, latin_brand)
-        frames.append(p)
+        frame = work / f'scene_{i+1}.png'
+        render_scene(scene, i, frame, arabic_regular, arabic_bold, latin_bold)
+        frames.append(frame)
 
     audio = Path(args.audio)
     audio_dur = probe_duration(audio)
@@ -212,7 +207,6 @@ def main():
         run(['ffmpeg', '-y', '-loop', '1', '-i', str(frame), '-vf', zoom, '-t', f'{dur:.3f}', '-r', str(FPS), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', str(clip)])
         clips.append(clip)
 
-    # Four visual clips with quick social-style transitions.
     offsets = []
     cumulative = durs[0]
     offsets.append(cumulative - fade)
