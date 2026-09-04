@@ -8,7 +8,7 @@
       "eyebrow": "تسرّب فالدار؟",
       "headline": "الما كيسيل وما عارف منين جا؟",
       "body": "المشكل الصغير يقدر يكبر بسرعة.",
-      "background": "leak1.jpg",
+      "background": "leak.jpg",
       "focus_x": 0.50,
       "focus_y": 0.48
     },
@@ -16,7 +16,7 @@
       "eyebrow": "كازا",
       "headline": "كتقلب على بلومبي مزيان؟",
       "body": "قلب على الحرفي اللي قريب ليك وبلا صداع.",
-      "background": "repair1.jpg",
+      "background": "plumber.jpg",
       "focus_x": 0.50,
       "focus_y": 0.50
     },
@@ -24,16 +24,16 @@
       "eyebrow": "اختيار أسهل",
       "headline": "شوف البروفايلات وقارن",
       "body": "قارن المعلومات وتاصل مباشرة مع الحرفي.",
-      "background": "repair2.jpg",
-      "focus_x": 0.50,
+      "background": "plumber.jpg",
+      "focus_x": 0.58,
       "focus_y": 0.48
     },
     {
       "eyebrow": "الحرفي قريب ليك",
       "headline": "Snay3i.ma",
       "body": "قلب. قارن. تاصل.",
-      "background": "leak2.jpg",
-      "focus_x": 0.50,
+      "background": "leak.jpg",
+      "focus_x": 0.45,
       "focus_y": 0.46
     }
   ]
