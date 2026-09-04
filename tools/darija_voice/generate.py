@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Snay3i Moroccan Darija voice factory test runner.
 import argparse
 from contextlib import nullcontext
 from importlib.resources import files
