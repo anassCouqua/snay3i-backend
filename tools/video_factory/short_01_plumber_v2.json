@@ -1,0 +1,40 @@
+{
+  "id": "short_01_plumber_casablanca_v2",
+  "language": "darija",
+  "format": "1080x1920",
+  "voice_text": "واش كتقلب على بلومبي مزيان فكازا وما عارفش منين تبدا؟ دخل لصنايعي بوان إم أَ، وقلب على الحرفي اللي قريب ليك.",
+  "scenes": [
+    {
+      "eyebrow": "تسرّب فالدار؟",
+      "headline": "الما كيسيل وما عارف منين جا؟",
+      "body": "المشكل الصغير يقدر يكبر بسرعة.",
+      "background": "leak.jpg",
+      "focus_x": 0.52,
+      "focus_y": 0.48
+    },
+    {
+      "eyebrow": "كازا",
+      "headline": "كتقلب على بلومبي مزيان؟",
+      "body": "قلب على الحرفي اللي قريب ليك وبلا صداع.",
+      "background": "plumber.jpg",
+      "focus_x": 0.46,
+      "focus_y": 0.45
+    },
+    {
+      "eyebrow": "اختيار أسهل",
+      "headline": "شوف البروفايلات وقارن",
+      "body": "قارن المعلومات وتاصل مباشرة مع الحرفي.",
+      "background": "plumber.jpg",
+      "focus_x": 0.60,
+      "focus_y": 0.42
+    },
+    {
+      "eyebrow": "الحرفي قريب ليك",
+      "headline": "Snay3i.ma",
+      "body": "قلب. قارن. تاصل.",
+      "background": "leak.jpg",
+      "focus_x": 0.48,
+      "focus_y": 0.40
+    }
+  ]
+}
