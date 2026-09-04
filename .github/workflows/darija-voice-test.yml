@@ -41,12 +41,22 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
-          key: hadra-darija-v1-${{ runner.os }}
+          key: hadra-darija-v2-${{ runner.os }}
 
       - name: Install TTS dependencies
         run: |
           python -m pip install --upgrade pip
+          # GitHub's standard runner is CPU-only. Pin torch + torchaudio to the
+          # same CPU build so pip does not pull an incompatible CUDA torchaudio.
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.8.0" "torchaudio==2.8.0"
           pip install "habibi-tts==0.1.1" soundfile huggingface_hub vocos accelerate safetensors
+          python - <<'PY'
+          import torch, torchaudio
+          print("torch", torch.__version__)
+          print("torchaudio", torchaudio.__version__)
+          assert torch.__version__.startswith("2.8.0")
+          assert torchaudio.__version__.startswith("2.8.0")
+          PY
 
       - name: Generate Moroccan Darija WAV
         env:
