@@ -1,4 +1,4 @@
-name: Snay3i Video Factory v2.1
+name: Snay3i Video Factory v2.2
 
 on:
   workflow_dispatch:
@@ -26,10 +26,10 @@ jobs:
           cache: "pip"
           cache-dependency-path: tools/video_factory/requirements.txt
 
-      - name: Install media and Arabic fonts
+      - name: Install media, Arabic shaping and fonts
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-noto-core fontconfig
+          sudo apt-get install -y ffmpeg fonts-noto-core fontconfig libraqm0 libfribidi0 libharfbuzz0b
           fc-match "Noto Sans Arabic"
 
       - name: Cache Hugging Face models
@@ -44,19 +44,26 @@ jobs:
           pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.8.0" "torchaudio==2.8.0"
           pip install "habibi-tts==0.1.1" soundfile huggingface_hub vocos accelerate safetensors
           pip install -r tools/video_factory/requirements.txt
+          python - <<'PY'
+          from PIL import features
+          print('Pillow RAQM:', features.check('raqm'))
+          if not features.check('raqm'):
+              raise SystemExit('RAQM is required for correct Arabic RTL rendering')
+          PY
 
-      - name: Download live Snay3i logo + high-resolution visuals
+      - name: Download live Snay3i logo + clean high-resolution visuals
         run: |
           mkdir -p output/assets
-          # This is the logo actually used by the live Snay3i frontend header.
           curl -L --fail --retry 3 \
             "https://raw.githubusercontent.com/anassCouqua/snay3i-frontend/main/public/logo.png" \
             -o output/assets/snay3i-logo.png
+
+          # Clean close-up plumbing imagery with no foreign company/workwear branding.
           curl -L --fail --retry 3 \
-            "https://images.pexels.com/photos/3787025/pexels-photo-3787025.jpeg?cs=srgb&dl=pexels-chuck-3787025.jpg&fm=jpg" \
+            "https://images.pexels.com/photos/3787025/pexels-photo-3787025.jpeg?auto=compress&cs=tinysrgb&w=1600" \
             -o output/assets/leak.jpg
           curl -L --fail --retry 3 \
-            "https://images.pexels.com/photos/32588548/pexels-photo-32588548.jpeg?cs=srgb&dl=pexels-bulat843-1243575272-32588548.jpg&fm=jpg" \
+            "https://images.pexels.com/photos/7220892/pexels-photo-7220892.jpeg?auto=compress&cs=tinysrgb&w=1600" \
             -o output/assets/plumber.jpg
           file output/assets/*
 
@@ -79,20 +86,20 @@ jobs:
             --audio output/snay3i-short-01-voice.wav \
             --assets output/assets \
             --logo output/assets/snay3i-logo.png \
-            --output output/snay3i-short-01-plumber-casablanca-v2-1.mp4
+            --output output/snay3i-short-01-plumber-casablanca-v2-2.mp4
           ffprobe -v error \
             -show_entries stream=width,height,codec_name \
             -show_entries format=duration,size \
             -of default=noprint_wrappers=1 \
-            output/snay3i-short-01-plumber-casablanca-v2-1.mp4
+            output/snay3i-short-01-plumber-casablanca-v2-2.mp4
 
-      - name: Upload Snay3i v2.1 Short
+      - name: Upload Snay3i v2.2 Short
         uses: actions/upload-artifact@v4
         with:
-          name: snay3i-video-factory-v2-1-short-01
+          name: snay3i-video-factory-v2-2-short-01
           path: |
-            output/snay3i-short-01-plumber-casablanca-v2-1.mp4
+            output/snay3i-short-01-plumber-casablanca-v2-2.mp4
             output/snay3i-short-01-voice.wav
             output/assets/snay3i-logo.png
-            output/video_factory_v2/scene_*.jpg
+            output/video_factory_v22/scene_*.jpg
           retention-days: 7
