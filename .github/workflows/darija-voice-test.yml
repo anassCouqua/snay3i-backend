@@ -6,7 +6,7 @@ on:
       text:
         description: Darija text to generate
         required: true
-        default: "واش كتقلب على بلومبي مزيان فكازا وما عارفش منين تبدا؟ دخل لصنايعي بوان إم آ، وقلب على الحرفي اللي قريب ليك."
+        default: "واش كتقلب على بلومبي مزيان فكازا وما عارفش منين تبدا؟ دخل لصنايعي بوان إم أَ، وقلب على الحرفي اللي قريب ليك."
       speed:
         description: Voice speed
         required: false
@@ -60,7 +60,7 @@ jobs:
 
       - name: Generate Moroccan Darija WAV
         env:
-          DARija_TEXT: ${{ github.event.inputs.text || 'واش كتقلب على بلومبي مزيان فكازا وما عارفش منين تبدا؟ دخل لصنايعي بوان إم آ، وقلب على الحرفي اللي قريب ليك.' }}
+          DARija_TEXT: ${{ github.event.inputs.text || 'واش كتقلب على بلومبي مزيان فكازا وما عارفش منين تبدا؟ دخل لصنايعي بوان إم أَ، وقلب على الحرفي اللي قريب ليك.' }}
           DARija_SPEED: ${{ github.event.inputs.speed || '0.93' }}
         run: |
           python tools/darija_voice/generate.py \
