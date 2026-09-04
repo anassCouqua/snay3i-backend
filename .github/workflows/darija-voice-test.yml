@@ -1,0 +1,66 @@
+name: Darija Voice Factory Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      text:
+        description: Darija text to generate
+        required: true
+        default: "واش كتقلب على بلومبي مزيان فكازا وما عارفش منين تبدا؟ دخل لسنّايعي دوت ما، وقلب على الحرفي اللي قريب ليك."
+      speed:
+        description: Voice speed
+        required: false
+        default: "0.93"
+  push:
+    branches:
+      - darija-voice-factory
+    paths:
+      - ".github/workflows/darija-voice-test.yml"
+      - "tools/darija_voice/**"
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hadra-darija-v1-${{ runner.os }}
+
+      - name: Install TTS dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install "habibi-tts==0.1.1" soundfile huggingface_hub vocos accelerate safetensors
+
+      - name: Generate Moroccan Darija WAV
+        env:
+          DARija_TEXT: ${{ github.event.inputs.text || 'واش كتقلب على بلومبي مزيان فكازا وما عارفش منين تبدا؟ دخل لسنّايعي دوت ما، وقلب على الحرفي اللي قريب ليك.' }}
+          DARija_SPEED: ${{ github.event.inputs.speed || '0.93' }}
+        run: |
+          python tools/darija_voice/generate.py \
+            --text "$DARija_TEXT" \
+            --speed "$DARija_SPEED" \
+            --output output/snay3i-darija-test.wav
+
+      - name: Upload generated voice
+        uses: actions/upload-artifact@v4
+        with:
+          name: snay3i-darija-voice
+          path: output/snay3i-darija-test.wav
+          retention-days: 7
