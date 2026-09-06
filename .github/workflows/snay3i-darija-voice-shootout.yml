@@ -41,7 +41,8 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import shutil
-          from huggingface_hub import hf_hub_download
+          from huggingface_hub import HfApi, hf_hub_download
+          from huggingface_hub.errors import RemoteEntryNotFoundError
 
           repo = "Jip7e/doda-darija-cosyvoice2"
           text_file = hf_hub_download(repo_id=repo, repo_type="dataset", filename="train/text")
@@ -60,21 +61,34 @@ jobs:
               "kenza.wav": "نستافدو من المدينة وداكشي لي تقدر تعطي",
           }
 
+          repo_files = set(HfApi().list_repo_files(repo_id=repo, repo_type="dataset"))
           for out_name, transcript in wanted.items():
               utt = rows.get(transcript)
               if not utt:
                   raise SystemExit(f"Golden prompt not found: {transcript}")
               idx = utt.rsplit("_", 1)[-1]
-              src = hf_hub_download(repo_id=repo, repo_type="dataset", filename=f"wavs/{idx}.wav")
+              candidates = [
+                  f"wavs/{idx}.wav",
+                  f"data/wavs/{idx}.wav",
+                  f"audio/{idx}.wav",
+              ]
+              actual = next((c for c in candidates if c in repo_files), None)
+              if not actual:
+                  matches = [f for f in repo_files if f.endswith(f"/{idx}.wav") or f == f"{idx}.wav"]
+                  if matches:
+                      actual = matches[0]
+              if not actual:
+                  raise SystemExit(f"No audio file found for {utt}; checked {candidates}")
+              src = hf_hub_download(repo_id=repo, repo_type="dataset", filename=actual)
               dst = Path("output/voice_refs") / out_name
               shutil.copyfile(src, dst)
-              print(out_name, utt, transcript)
+              print(out_name, utt, actual, transcript)
           PY
 
       - name: Generate three Snay3i voice candidates
         run: |
           python tools/darija_voice/voice_shootout.py \
-            --target "واش كتقلب على بلومبي فكازا؟ دخل لصنايعي بوان إم أَ، وشوف شكون قريب ليك." \
+            --target "واش الما كيسرب ليك فالدار فكازا وما عارفش شكون تعيط ليه؟ دخل لصنايعي بوان إم أَ، قلب على بلومبي قريب ليك وعيط ليه دغيا." \
             --refs-dir output/voice_refs \
             --output-dir output/voice_shootout \
             --speed 0.92 \
