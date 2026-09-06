@@ -1,0 +1,88 @@
+name: Snay3i Darija Voice Shootout
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - darija-voice-factory
+    paths:
+      - ".github/workflows/snay3i-darija-voice-shootout.yml"
+      - "tools/darija_voice/voice_shootout.py"
+
+jobs:
+  compare-voices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hadra-darija-v2-${{ runner.os }}
+
+      - name: Install CPU TTS stack
+        run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.8.0" "torchaudio==2.8.0"
+          pip install "habibi-tts==0.1.1" soundfile huggingface_hub vocos accelerate safetensors
+
+      - name: Fetch native Moroccan reference clips
+        run: |
+          mkdir -p output/voice_refs output/voice_shootout
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          from huggingface_hub import hf_hub_download
+
+          repo = "Jip7e/doda-darija-cosyvoice2"
+          text_file = hf_hub_download(repo_id=repo, repo_type="dataset", filename="train/text")
+          rows = {}
+          with open(text_file, encoding="utf-8") as f:
+              for line in f:
+                  line = line.strip()
+                  if not line:
+                      continue
+                  utt, text = line.split(maxsplit=1)
+                  rows[text] = utt
+
+          wanted = {
+              "amine.wav": "يمكن ما كيعجبكش الطيران من هادشي كلو",
+              "yassine.wav": "يبان ليا غايجينا جواب اسرع من الناس لي فالاستقبال",
+              "kenza.wav": "نستافدو من المدينة وداكشي لي تقدر تعطي",
+          }
+
+          for out_name, transcript in wanted.items():
+              utt = rows.get(transcript)
+              if not utt:
+                  raise SystemExit(f"Golden prompt not found: {transcript}")
+              idx = utt.rsplit("_", 1)[-1]
+              src = hf_hub_download(repo_id=repo, repo_type="dataset", filename=f"wavs/{idx}.wav")
+              dst = Path("output/voice_refs") / out_name
+              shutil.copyfile(src, dst)
+              print(out_name, utt, transcript)
+          PY
+
+      - name: Generate three Snay3i voice candidates
+        run: |
+          python tools/darija_voice/voice_shootout.py \
+            --target "واش كتقلب على بلومبي فكازا؟ دخل لصنايعي بوان إم أَ، وشوف شكون قريب ليك." \
+            --refs-dir output/voice_refs \
+            --output-dir output/voice_shootout \
+            --speed 0.92 \
+            --nfe 16
+
+      - name: Upload voice candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: snay3i-darija-voice-shootout
+          path: output/voice_shootout/*.wav
+          retention-days: 7
