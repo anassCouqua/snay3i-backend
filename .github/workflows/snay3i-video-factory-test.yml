@@ -111,7 +111,7 @@ jobs:
           if [ "$LANG" = "darija" ]; then
             python tools/darija_voice/generate.py \
               --text "$VOICE_TEXT" \
-              --speed "0.93" \
+              --speed "0.98" \
               --output output/hourly-voice.wav
           else
             python - <<'PY'
