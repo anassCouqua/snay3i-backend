@@ -87,7 +87,7 @@ jobs:
       - name: Build slot script and metadata
         run: |
           mkdir -p output/assets
-          python tools/video_factory/hourly_catalog.py \
+          python tools/video_factory/hourly_variant.py \
             --slot "${{ matrix.slot }}" \
             --script output/hourly-script.json \
             --meta output/hourly-meta.json
