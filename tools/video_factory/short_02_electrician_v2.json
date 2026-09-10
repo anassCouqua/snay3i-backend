@@ -1,0 +1,12 @@
+{
+  "id": "short_02_electrician_safety",
+  "language": "darija",
+  "format": "1080x1920",
+  "voice_text": "الضو كيقطع عليك بلا سبب؟ إلا شمّيتي ريحة ديال الحريق، شفتي شرار، ولا الديجونكتور كيطفي بزاف، ما تغامرْش تصلحها بوحدك. حبّس تستعمل الحاجة اللي فيها المشكل إلا كان آمن، وعيط لمختص. كتقلب على صنايعي وما عارفش على من تعيط؟ دخل لصنايعي بوان إم أ، قلب وقارن قبل ما تتاصل.",
+  "scenes": [
+    {"eyebrow":"مشكل فالضو؟","headline":"الضو كيقطع بلا سبب؟","body":"هاد العلامة ما خاصكش تتجاهلها.","background":"electrician_warning.jpg","focus_x":0.50,"focus_y":0.48},
+    {"eyebrow":"السلامة أولا","headline":"ريحة حريق، شرار، ولا الديجونكتور كيطفي؟","body":"ما تحلش الطابلو وما تحاولش تصلحها بوحدك.","background":"electrician_work.jpg","focus_x":0.50,"focus_y":0.50},
+    {"eyebrow":"قلب على مختص","headline":"قارن قبل ما تتاصل","body":"شوف المعلومات والتخصص واختار اللي ناسبك.","background":"electrician_work.jpg","focus_x":0.55,"focus_y":0.48},
+    {"eyebrow":"الحرفي قريب ليك","headline":"Snay3i.ma","body":"قلب. قارن. تاصل.","background":"electrician_warning.jpg","focus_x":0.45,"focus_y":0.46}
+  ]
+}
