@@ -5,17 +5,6 @@ from hourly_catalog import build
 
 DARJA_CITIES = ["كازا", "الرباط", "مراكش"]
 FRENCH_CITIES = ["Casablanca", "Rabat", "Marrakech"]
-DARJA_VARIANTS = [
-    ("إلا كنت ف{city}، خليك واضح من الأول. ", "ف{city}"),
-    ("ف{city}، قبل ما تختار أي حرفي، قارن المعلومات مزيان. ", "نصيحة ديال {city}"),
-    ("هاد النصيحة نافعة خصوصا إلا كنت ف{city}. ", "ف{city} اليوم"),
-]
-FRENCH_VARIANTS = [
-    ("À {city}, commencez par comparer les informations disponibles. ", "À {city}"),
-    ("Si vous êtes à {city}, vérifiez les détails avant de choisir. ", "Conseil {city}"),
-    ("À {city}, quelques vérifications simples peuvent vous faire gagner du temps. ", "À {city} aujourd'hui"),
-]
-
 
 def make_distinct(slot: int):
     item = build(slot)
@@ -24,12 +13,12 @@ def make_distinct(slot: int):
     meta = item["meta"]
     if script["language"] == "darija":
         city = DARJA_CITIES[cycle % len(DARJA_CITIES)]
-        prefix, eyebrow = DARJA_VARIANTS[cycle % len(DARJA_VARIANTS)]
     else:
         city = FRENCH_CITIES[cycle % len(FRENCH_CITIES)]
-        prefix, eyebrow = FRENCH_VARIANTS[cycle % len(FRENCH_VARIANTS)]
-    script["voice_text"] = prefix.format(city=city) + script["voice_text"]
-    script["scenes"][0]["eyebrow"] = eyebrow.format(city=city)
+
+    # Keep city rotation visual/metadata-only. Do not glue a generic city
+    # sentence onto the spoken copy: that was making Darija sound stitched.
+    script["scenes"][0]["eyebrow"] = city
     meta["title"] = f"{meta['title']} · {city}"
     meta["city_rotation"] = city
     meta["variant_cycle"] = cycle
