@@ -27,9 +27,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          SLOT=$(date -u +%H | sed 's/^0//')
+          if [ -z "$SLOT" ]; then SLOT=0; fi
+          echo "Dispatching Snay3i slot $SLOT"
           gh api --method POST \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
             "/repos/${{ github.repository }}/actions/workflows/350305460/dispatches" \
-            -f ref='darija-voice-factory'
-          echo 'Dispatched Snay3i Video Factory v2.2 on darija-voice-factory.'
+            -f ref='darija-voice-factory' \
+            -F "inputs[slot]=$SLOT"
+          echo "Dispatched Snay3i Video Factory v3.0 slot $SLOT on darija-voice-factory."
