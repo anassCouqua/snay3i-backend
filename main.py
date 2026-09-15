@@ -1126,6 +1126,18 @@ def run_adsense_cleanup(db: Session = Depends(get_db)):
     }
 
 
+def _run_adsense_cleanup_once_on_deploy():
+    db = SessionLocal()
+    try:
+        result = run_adsense_cleanup(db)
+        print(f"ADSENSE_CLEANUP_RESULT: {result}")
+    finally:
+        db.close()
+
+
+_run_adsense_cleanup_once_on_deploy()
+
+
 @app.delete("/workers/{wid}", status_code=204)
 def delete_worker(wid: int, db: Session = Depends(get_db)):
     w = db.query(Worker).filter(Worker.id == wid).first()
