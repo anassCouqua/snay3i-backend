@@ -32,7 +32,7 @@ class Worker(Base):
     name      = Column(String, nullable=False)
     service   = Column(String, nullable=False, index=True)
     city      = Column(String, nullable=False)
-    rating    = Column(Float, default=5.0)
+    rating    = Column(Float, default=0.0)
     reviews   = Column(Integer, default=0)
     verified  = Column(Boolean, default=False)
     bio       = Column(String, default="")
@@ -53,7 +53,7 @@ class WorkerOut(BaseModel):
 
 class WorkerCreate(BaseModel):
     name: str; service: str; city: str
-    rating: float = 5.0; reviews: int = 0; verified: bool = False
+    rating: float = 0.0; reviews: int = 0; verified: bool = False
     bio: str = ""; tags: list[str] = []
     phone: str = ""; whatsapp: str = ""; address: str = ""; years_exp: int = 0
 
