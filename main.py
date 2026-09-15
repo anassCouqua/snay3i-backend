@@ -10,9 +10,17 @@ import os
 import os
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./snay3i.db")
 if DATABASE_URL.startswith("postgres"):
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=300,
+    )
 else:
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        pool_pre_ping=True,
+    )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase):
@@ -32,7 +40,7 @@ class Worker(Base):
     phone     = Column(String, default="")
     whatsapp  = Column(String, default="")
     address   = Column(String, default="")
-    years_exp = Column(Integer, default=1)
+    years_exp = Column(Integer, default=0)
 
 Base.metadata.create_all(bind=engine)
 
@@ -47,7 +55,7 @@ class WorkerCreate(BaseModel):
     name: str; service: str; city: str
     rating: float = 5.0; reviews: int = 0; verified: bool = False
     bio: str = ""; tags: list[str] = []
-    phone: str = ""; whatsapp: str = ""; address: str = ""; years_exp: int = 1
+    phone: str = ""; whatsapp: str = ""; address: str = ""; years_exp: int = 0
 
 app = FastAPI(title="Snay3i.ma API", version="1.0.0")
 app.add_middleware(CORSMiddleware,
@@ -916,7 +924,7 @@ def serialize(w):
         rating=w.rating, reviews=w.reviews, verified=w.verified,
         bio=w.bio, tags=json.loads(w.tags) if w.tags else [],
         phone=w.phone or "", whatsapp=w.whatsapp or "",
-        address=w.address or "", years_exp=w.years_exp or 1)
+        address=w.address or "", years_exp=w.years_exp if w.years_exp is not None else 0)
 
 @app.get("/")
 def root(): return {"message": "Snay3i.ma API — صنايعي.ما"}
@@ -997,8 +1005,33 @@ def get_by_service(service: str, city: Optional[str] = None, db: Session = Depen
 
 @app.post("/workers", response_model=WorkerOut, status_code=201)
 def create_worker(data: WorkerCreate, db: Session = Depends(get_db)):
-    d = data.model_dump(); d["tags"] = json.dumps(d["tags"])
-    w = Worker(**d); db.add(w); db.commit(); db.refresh(w)
+    name = (data.name or "").strip()
+    phone = (data.phone or "").strip()
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if len(name) < 2:
+        raise HTTPException(400, "Name is too short")
+    if len(digits) not in (10, 12, 14):
+        raise HTTPException(400, "Phone number must be a valid Moroccan local or international number")
+
+    duplicate = db.query(Worker).filter(
+        Worker.name.ilike(name),
+        Worker.service.ilike(data.service),
+        Worker.city.ilike(data.city),
+        Worker.phone == phone,
+    ).first()
+    if duplicate:
+        raise HTTPException(409, "This profile already exists")
+
+    d = data.model_dump()
+    d["name"] = name
+    d["rating"] = 0.0
+    d["reviews"] = 0
+    d["verified"] = False
+    d["tags"] = json.dumps(d["tags"])
+    w = Worker(**d)
+    db.add(w)
+    db.commit()
+    db.refresh(w)
     return serialize(w)
 
 
@@ -1031,6 +1064,67 @@ def db_check():
     url_str = str(engine.url)
     masked = url_str.split('@')[0].split('://')[0] + '://...@' + url_str.split('@')[-1] if '@' in url_str else url_str
     return {"engine_dialect": engine.dialect.name, "masked_url": masked}
+
+@app.get("/admin/run-adsense-cleanup-20260915-9f7c2a61")
+def run_adsense_cleanup(db: Session = Depends(get_db)):
+    delete_ids = [963, 982, 984, 985, 988, 990]
+    deleted = db.query(Worker).filter(Worker.id.in_(delete_ids)).delete(synchronize_session=False)
+
+    workers = db.query(Worker).all()
+    for w in workers:
+        w.rating = 0.0
+        w.reviews = 0
+        w.verified = False
+        if 776 <= w.id <= 979:
+            w.years_exp = 0
+
+    fixes = {
+        863: {"name": "Electricien Fès Centre"},
+        980: {"bio": "Grand oeuvre proffessionelle a grande qualité\n"},
+        981: {
+            "bio": "مقاول ذاتي متخصص في التركيبات الكهربائية و الإنارة العصرية و كاميرات المراقبة و الأجهزة الذكية المنزلية ",
+            "tags": json.dumps(["LED", "lustre", "disjoncteur", "cablage", "vidéophone", "caméra survaillence", "caméra wifi", "les appareillés smart"]),
+        },
+        983: {
+            "bio": "أنا معلم ديال الرخام، عندي 25 عام ديال التجربة فتركيب الرخام بجميع أنواعه.\nكنقوم بـ:\n\n* تركيب رخام الأرضيات\n* رخام الدروج\n* رخام المطابخ\n* رخام الحمامات\n* تلبيس الحيطان بالرخام\n* جميع أشغال الرخام والتشطيبات باحترافية\n\nالثمن على حسب الخدمة، والديفي (Devis) مجاني.\n\nلأي استفسار أو طلب، مرحبا تتاصلوا بيا",
+        },
+        986: {
+            "bio": "Serrurier avec 20 ans d expérience spécialiste. Ouverture coffre fort, réparation, installation. Porte claquée ou fermée à clé.",
+            "tags": json.dumps(["Serrurier", "Coffre fort", "Poignée électrique"]),
+        },
+        987: {
+            "name": "Laabar Abdelilah",
+            "bio": "Peintre décorateur d'intérieur\nPeintre bâtiment\nApplication de tout type de peinture",
+            "tags": json.dumps(["Peintre"]),
+            "address": "Sidi Othmane Moulay Rachid Casablanca",
+        },
+        989: {
+            "name": "عصام اعزيزي",
+            "city": "Casablanca",
+            "bio": "تبليط الارضيات بيطون طيارة بيطون لامبريمي بيطون ديزاكتيفي لارزين ايبوكسي",
+            "tags": json.dumps(["مجال البناء", "تبليط الارضيات"]),
+            "phone": "0681053596",
+            "whatsapp": "0681053596",
+            "address": "سيدي مومن",
+        },
+    }
+    for wid, values in fixes.items():
+        w = db.query(Worker).filter(Worker.id == wid).first()
+        if not w:
+            continue
+        for key, value in values.items():
+            setattr(w, key, value)
+
+    db.commit()
+    remaining = db.query(Worker).count()
+    return {
+        "status": "done",
+        "deleted": deleted,
+        "remaining": remaining,
+        "claims_neutralized": True,
+        "known_encoding_repairs_applied": True,
+    }
+
 
 @app.delete("/workers/{wid}", status_code=204)
 def delete_worker(wid: int, db: Session = Depends(get_db)):
