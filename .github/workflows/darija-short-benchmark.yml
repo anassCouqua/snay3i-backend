@@ -44,7 +44,7 @@ jobs:
         run: |
           REF_TEXT="$(cat output/${{ matrix.speaker }}-ref.txt)"
           python tools/darija_voice/generate.py \
-            --text "واش الما كيسرب ليك فالدار وما عارفش شكون تعيط ليه؟" \
+            --text "واش الما كيسرب ليك فالدار وما عارفش على من تعيط؟" \
             --ref-audio "output/${{ matrix.speaker }}-ref.wav" \
             --ref-text "$REF_TEXT" \
             --speed 0.93 \
