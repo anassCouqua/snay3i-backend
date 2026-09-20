@@ -28,6 +28,8 @@ def parse_args():
     parser.add_argument("--speed", type=float, default=0.98, help="Speech speed")
     parser.add_argument("--nfe", type=int, default=16, help="Flow-matching inference steps")
     parser.add_argument("--pause", type=float, default=0.10, help="Pause between spoken chunks in seconds")
+    parser.add_argument("--ref-audio", default=None, help="Optional reference-speaker audio file")
+    parser.add_argument("--ref-text", default=None, help="Verbatim transcript for --ref-audio")
     return parser.parse_args()
 
 def spoken_chunks(text: str):
@@ -45,16 +47,23 @@ def main():
     ckpt_path = hf_hub_download(repo_id=MODEL_REPO, filename="model_ema.safetensors")
     vocab_path = hf_hub_download(repo_id=MODEL_REPO, filename="vocab.txt")
 
-    ref_audio = files("habibi_tts").joinpath("assets/MAR.mp3")
+    if args.ref_audio:
+        ref_audio = Path(args.ref_audio)
+        ref_text = args.ref_text
+        if not ref_text:
+            raise ValueError("--ref-text is required when --ref-audio is supplied")
+    else:
+        ref_audio = files("habibi_tts").joinpath("assets/MAR.mp3")
+        ref_text = MAR_REF_TEXT
     if not ref_audio.is_file():
-        raise FileNotFoundError(f"Bundled Moroccan reference audio not found: {ref_audio}")
+        raise FileNotFoundError(f"Moroccan reference audio not found: {ref_audio}")
 
     print(f"Using Moroccan reference voice: {ref_audio}")
     print("Loading HADRA model...")
     cfg = dict(dim=1024, depth=22, heads=16, ff_mult=2, text_dim=512, conv_layers=4)
     model = load_model(DiT, cfg, ckpt_path, vocab_file=vocab_path)
     vocoder = load_vocoder("vocos")
-    ra, rt = preprocess_ref_audio_text(str(ref_audio), MAR_REF_TEXT)
+    ra, rt = preprocess_ref_audio_text(str(ref_audio), ref_text)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     chunks = spoken_chunks(args.text)
