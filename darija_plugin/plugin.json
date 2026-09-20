@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "snay3i-darija-voice",
+  "version": "0.1.0",
+  "description": "Natural Moroccan Darija normalization and phonetic preparation for TTS.",
+  "author": {
+    "name": "Snay3i.ma"
+  },
+  "repository": "https://github.com/anassCouqua/snay3i-backend",
+  "keywords": ["darija", "morocco", "tts", "voice", "arabic"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Snay3i Darija Voice",
+        "shortDescription": "Prepare natural Moroccan Darija for speech",
+        "longDescription": "Normalizes Moroccan Darija, applies Snay3i pronunciation rules, and adds phonetic tashkeel before text is sent to a voice engine.",
+        "developerName": "Snay3i.ma",
+        "category": "Productivity",
+        "capabilities": ["Read"]
+      }
+    }
+  }
+}
