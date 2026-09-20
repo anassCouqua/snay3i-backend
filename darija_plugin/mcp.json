@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "darija-voice": {
+      "type": "streamable-http",
+      "url": "https://snay3i-darija-voice.onrender.com/mcp"
+    }
+  }
+}
