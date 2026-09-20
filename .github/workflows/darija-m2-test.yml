@@ -1,0 +1,47 @@
+name: HADRA Native Male M2 Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - darija-voice-factory
+    paths:
+      - ".github/workflows/darija-m2-test.yml"
+      - "tools/darija_voice/fetch_native_ref.py"
+
+jobs:
+  synthesize-m2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: darija-voice-factory
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.8.0" "torchaudio==2.8.0"
+          pip install "habibi-tts==0.1.1" soundfile huggingface_hub vocos accelerate safetensors datasets
+
+      - name: Fetch HADRA M2 Mehdi golden reference
+        run: |
+          python tools/darija_voice/fetch_native_ref.py             --speaker M2             --text "واخا والمشروبات اش نديرو فيهم"             --output output/m2-mehdi.wav
+          ffprobe -v error -show_entries format=duration -of default=nw=1 output/m2-mehdi.wav
+
+      - name: Generate native male Moroccan test
+        run: |
+          python tools/darija_voice/generate.py             --text "واش الما كيسرب ليك فالدار وما عارفش شكون تعيط ليه؟ إلا قدرت وبلا خطر، سد الما. صور التسرب باش توريه للبلومبي. من بعد دخل لصنايعي بوان إم أ، قلب على بلومبي حداك، شوف البروفايلات وعيط للي ناسبك."             --ref-audio output/m2-mehdi.wav             --ref-text "واخا والمشروبات اش نديرو فيهم"             --speed 0.93             --nfe 32             --output output/hadra-m2-snay3i.wav
+
+      - name: Upload audio
+        uses: actions/upload-artifact@v4
+        with:
+          name: hadra-m2-snay3i-test
+          path: output/hadra-m2-snay3i.wav
+          retention-days: 7
