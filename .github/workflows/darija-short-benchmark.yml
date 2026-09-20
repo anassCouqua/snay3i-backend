@@ -1,0 +1,59 @@
+name: Darija 5-second M2 vs M3 Benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [darija-voice-factory]
+    paths:
+      - ".github/workflows/darija-short-benchmark.yml"
+      - "tools/darija_voice/fetch_speaker_ref.py"
+
+jobs:
+  benchmark:
+    strategy:
+      matrix:
+        speaker: [M2, M3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: darija-voice-factory
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.8.0" "torchaudio==2.8.0"
+          pip install "habibi-tts==0.1.1" soundfile huggingface_hub vocos accelerate safetensors datasets
+
+      - name: Fetch native Moroccan reference
+        run: |
+          python tools/darija_voice/fetch_speaker_ref.py \
+            --speaker "${{ matrix.speaker }}" \
+            --audio-out "output/${{ matrix.speaker }}-ref.wav" \
+            --text-out "output/${{ matrix.speaker }}-ref.txt"
+
+      - name: Synthesize short benchmark
+        shell: bash
+        run: |
+          REF_TEXT="$(cat output/${{ matrix.speaker }}-ref.txt)"
+          python tools/darija_voice/generate.py \
+            --text "واش الما كيسرب ليك فالدار وما عارفش شكون تعيط ليه؟" \
+            --ref-audio "output/${{ matrix.speaker }}-ref.wav" \
+            --ref-text "$REF_TEXT" \
+            --speed 0.93 \
+            --nfe 32 \
+            --output "output/snay3i-${{ matrix.speaker }}-short.wav"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: snay3i-${{ matrix.speaker }}-short
+          path: output/snay3i-${{ matrix.speaker }}-short.wav
+          retention-days: 7
