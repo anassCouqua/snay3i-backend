@@ -1,0 +1,63 @@
+name: M2 Darija Pronunciation Refinement
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [darija-voice-factory]
+    paths:
+      - ".github/workflows/darija-m2-refine.yml"
+
+jobs:
+  refine:
+    strategy:
+      matrix:
+        include:
+          - id: a
+            text: "واش الما كيتسرب ليك فالدار وما عارفش علامن تعيط؟"
+          - id: b
+            text: "واش لْما كيتسرب ليك فالدار وما عارفش علامن تعيط؟"
+          - id: c
+            text: "واش الما كَيْتْسَرَّب ليك فالدار وما عارفش عَلامَنْ تْعَيَّط؟"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: darija-voice-factory
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.8.0" "torchaudio==2.8.0"
+          pip install "habibi-tts==0.1.1" soundfile huggingface_hub vocos accelerate safetensors datasets
+
+      - name: Fetch M2 reference
+        run: |
+          python tools/darija_voice/fetch_speaker_ref.py \
+            --speaker M2 \
+            --audio-out output/M2-ref.wav \
+            --text-out output/M2-ref.txt
+
+      - name: Generate
+        shell: bash
+        run: |
+          REF_TEXT="$(cat output/M2-ref.txt)"
+          python tools/darija_voice/generate.py \
+            --text "${{ matrix.text }}" \
+            --ref-audio output/M2-ref.wav \
+            --ref-text "$REF_TEXT" \
+            --speed 0.93 \
+            --nfe 32 \
+            --output "output/M2-refine-${{ matrix.id }}.wav"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: M2-refine-${{ matrix.id }}
+          path: output/M2-refine-${{ matrix.id }}.wav
+          retention-days: 7
