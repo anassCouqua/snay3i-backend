@@ -1,0 +1,76 @@
+name: Darija Voice Factory Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      text:
+        description: Darija text to generate
+        required: true
+        default: "وَاشْ لْقِيتْ لْمَا كَيْسَرَّبْ فَالدَّارْ وَمَا عَارْفْشْ شْكُونْ تْعَيَّطْ لِيهْ؟ إِلَا قْدَرْتْ وَبْلَا خْطَرْ، سُدّْ لْمَا. صَوَّرْ التَّسَرُّبْ بَاشْ تْوَرِّيهْ لْلْبْلُومْبِي. مِنْ بَعْدْ، دْخُلْ لْصْنَايْعِي بْوَانْ إِمْ أَ، قَلَّبْ عْلَى بْلُومْبِي حْدَاكْ، شُوفْ لْبْرُوفِيلَاتْ وَعَيَّطْ لِلِّي نَاسْبَكْ."
+      speed:
+        description: Voice speed
+        required: false
+        default: "0.98"
+  push:
+    branches:
+      - darija-voice-factory
+    paths:
+      - ".github/workflows/darija-voice-test.yml"
+      - "tools/darija_voice/**"
+
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hadra-darija-v2-${{ runner.os }}
+
+      - name: Install TTS dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # GitHub's standard runner is CPU-only. Pin torch + torchaudio to the
+          # same CPU build so pip does not pull an incompatible CUDA torchaudio.
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.8.0" "torchaudio==2.8.0"
+          pip install "habibi-tts==0.1.1" soundfile huggingface_hub vocos accelerate safetensors
+          python - <<'PY'
+          import torch, torchaudio
+          print("torch", torch.__version__)
+          print("torchaudio", torchaudio.__version__)
+          assert torch.__version__.startswith("2.8.0")
+          assert torchaudio.__version__.startswith("2.8.0")
+          PY
+
+      - name: Generate Moroccan Darija WAV
+        env:
+          DARija_TEXT: ${{ github.event.inputs.text || 'وَاشْ لْقِيتْ لْمَا كَيْسَرَّبْ فَالدَّارْ وَمَا عَارْفْشْ شْكُونْ تْعَيَّطْ لِيهْ؟ إِلَا قْدَرْتْ وَبْلَا خْطَرْ، سُدّْ لْمَا. صَوَّرْ التَّسَرُّبْ بَاشْ تْوَرِّيهْ لْلْبْلُومْبِي. مِنْ بَعْدْ، دْخُلْ لْصْنَايْعِي بْوَانْ إِمْ أَ، قَلَّبْ عْلَى بْلُومْبِي حْدَاكْ، شُوفْ لْبْرُوفِيلَاتْ وَعَيَّطْ لِلِّي نَاسْبَكْ.' }}
+          DARija_SPEED: ${{ github.event.inputs.speed || '0.98' }}
+        run: |
+          python tools/darija_voice/generate.py \
+            --text "$DARija_TEXT" \
+            --speed "$DARija_SPEED" \
+            --output output/snay3i-darija-test.wav
+
+      - name: Upload generated voice
+        uses: actions/upload-artifact@v4
+        with:
+          name: snay3i-darija-voice
+          path: output/snay3i-darija-test.wav
+          retention-days: 7

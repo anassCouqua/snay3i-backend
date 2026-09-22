@@ -1,0 +1,158 @@
+name: Snay3i Video Factory v3.0
+
+on:
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "Hourly slot 0-23"
+        required: false
+        default: "0"
+  push:
+    branches:
+      - darija-voice-factory
+    paths:
+      - ".github/workflows/snay3i-video-factory-test.yml"
+      - "tools/video_factory/**"
+      - "tools/darija_voice/**"
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: snay3i-hourly-assets
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure public handoff release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target darija-voice-factory \
+              --title "Snay3i Hourly Video Assets" \
+              --notes "Rolling public handoff assets for the Snay3i hourly YouTube pipeline."
+          fi
+
+  render-short:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        slot: ${{ fromJSON(github.event_name == 'push' && '[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]' || format('[{0}]', inputs.slot)) }}
+
+    steps:
+      - name: Checkout isolated factory branch
+        uses: actions/checkout@v4
+        with:
+          ref: darija-voice-factory
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: tools/video_factory/requirements.txt
+
+      - name: Install media, Arabic shaping and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-core fontconfig libraqm0 libfribidi0 libharfbuzz0b
+          fc-match "Noto Sans Arabic"
+
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hadra-darija-v3-${{ runner.os }}
+
+      - name: Install TTS and render stack
+        run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.8.0" "torchaudio==2.8.0"
+          pip install "habibi-tts==0.1.1" soundfile huggingface_hub vocos accelerate safetensors gTTS
+          pip install -r tools/video_factory/requirements.txt
+          python - <<'PY'
+          from PIL import features
+          if not features.check('raqm'):
+              raise SystemExit('RAQM is required for correct Arabic RTL rendering')
+          PY
+
+      - name: Build slot script and metadata
+        run: |
+          mkdir -p output/assets
+          python tools/video_factory/hourly_variant.py \
+            --slot "${{ matrix.slot }}" \
+            --script output/hourly-script.json \
+            --meta output/hourly-meta.json
+          cat output/hourly-meta.json
+
+      - name: Download Snay3i logo and slot visuals
+        run: |
+          curl -L --fail --retry 3 \
+            "https://raw.githubusercontent.com/anassCouqua/snay3i-frontend/main/public/logo.png" \
+            -o output/assets/snay3i-logo.png
+          URL0=$(python -c "import json; print(json.load(open('output/hourly-meta.json'))['images'][0])")
+          URL1=$(python -c "import json; print(json.load(open('output/hourly-meta.json'))['images'][1])")
+          curl -L --fail --retry 3 "$URL0" -o output/assets/asset_0.jpg
+          curl -L --fail --retry 3 "$URL1" -o output/assets/asset_1.jpg
+          file output/assets/*
+
+      - name: Generate voice
+        run: |
+          LANG=$(python -c "import json; print(json.load(open('output/hourly-meta.json'))['language'])")
+          VOICE_TEXT=$(python -c "import json; print(json.load(open('output/hourly-script.json', encoding='utf-8'))['voice_text'])")
+          if [ "$LANG" = "darija" ]; then
+            python tools/darija_voice/generate.py \
+              --text "$VOICE_TEXT" \
+              --speed "0.98" \
+              --output output/hourly-voice.wav
+          else
+            python - <<'PY'
+          import json
+          from gtts import gTTS
+          text = json.load(open('output/hourly-script.json', encoding='utf-8'))['voice_text']
+          gTTS(text=text, lang='fr').save('output/hourly-voice.mp3')
+          PY
+            ffmpeg -y -i output/hourly-voice.mp3 -ar 44100 -ac 1 output/hourly-voice.wav
+          fi
+
+      - name: Render premium 1080x1920 Short
+        run: |
+          OUT="output/snay3i-hourly-${{ matrix.slot }}.mp4"
+          python tools/video_factory/render_short_v2.py \
+            --script output/hourly-script.json \
+            --audio output/hourly-voice.wav \
+            --assets output/assets \
+            --logo output/assets/snay3i-logo.png \
+            --output "$OUT"
+          ffprobe -v error \
+            -show_entries stream=width,height,codec_name \
+            -show_entries format=duration,size \
+            -of default=noprint_wrappers=1 "$OUT"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snay3i-hourly-slot-${{ matrix.slot }}
+          path: |
+            output/snay3i-hourly-${{ matrix.slot }}.mp4
+            output/hourly-meta.json
+          retention-days: 7
+
+      - name: Publish stable public handoff files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp output/hourly-meta.json "output/snay3i-hourly-${{ matrix.slot }}.json"
+          gh release upload "$RELEASE_TAG" \
+            "output/snay3i-hourly-${{ matrix.slot }}.mp4" \
+            "output/snay3i-hourly-${{ matrix.slot }}.json" \
+            --clobber \
+            --repo "$GITHUB_REPOSITORY"
