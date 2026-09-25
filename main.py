@@ -67,6 +67,9 @@ def get_db():
     try: yield db
     finally: db.close()
 
+from lead_events import register_lead_event_routes
+register_lead_event_routes(app, Base, engine, get_db, Worker)
+
 SEED = [
   # ══ CASABLANCA — Plombiers ══════════════════════════════════════════════
   {"name":"Saber Omar","service":"plumber","city":"Casablanca","rating":4.8,"reviews":87,"verified":True,"bio":"Plombier professionnel Casablanca. Fuites, debouchage, chauffe-eau, sanitaires. Intervention rapide.","tags":["Fuites","Debouchage","Chauffe-eau"],"phone":"0664-676006","whatsapp":"212664676006","address":"Casablanca","years_exp":12},
