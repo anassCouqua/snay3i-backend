@@ -66,6 +66,19 @@ def ensure_worker_profile_columns():
 
 ensure_worker_profile_columns()
 
+class ProfileUpdateRequest(Base):
+    __tablename__ = "profile_update_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    worker_id = Column(Integer, nullable=False, index=True)
+    claimant_name = Column(String, nullable=False)
+    claimant_email = Column(String, default="")
+    claimant_phone = Column(String, default="")
+    requested_changes = Column(String, nullable=False)
+    submitted_at = Column(String, default=lambda: __import__("datetime").datetime.utcnow().isoformat())
+    status = Column(String, default="pending")
+
+Base.metadata.create_all(bind=engine)
+
 class WorkerOut(BaseModel):
     id: int; name: str; service: str; city: str
     rating: float; reviews: int; verified: bool
@@ -80,6 +93,13 @@ class WorkerCreate(BaseModel):
     bio: str = ""; tags: list[str] = []
     phone: str = ""; whatsapp: str = ""; address: str = ""; years_exp: int = 0
     service_details: str = ""; service_area: str = ""; languages: list[str] = []; availability: str = ""
+
+class ProfileUpdateRequestIn(BaseModel):
+    worker_id: int
+    claimant_name: str
+    claimant_email: str = ""
+    claimant_phone: str = ""
+    requested_changes: str
 
 app = FastAPI(title="Snay3i.ma API", version="1.0.0")
 app.add_middleware(CORSMiddleware,
@@ -1019,6 +1039,29 @@ def get_worker_by_id(wid: int, db: Session = Depends(get_db)):
     w = db.query(Worker).filter(Worker.id == wid).first()
     if not w: raise HTTPException(404, "Worker not found")
     return serialize(w)
+
+@app.post("/profile-update-requests", status_code=201)
+def create_profile_update_request(data: ProfileUpdateRequestIn, db: Session = Depends(get_db)):
+    worker = db.query(Worker).filter(Worker.id == data.worker_id).first()
+    if not worker:
+        raise HTTPException(404, "Worker not found")
+    name = (data.claimant_name or "").strip()
+    changes = (data.requested_changes or "").strip()
+    if len(name) < 2:
+        raise HTTPException(400, "Please provide your name")
+    if len(changes) < 10:
+        raise HTTPException(400, "Please describe the correction or update")
+    req = ProfileUpdateRequest(
+        worker_id=data.worker_id,
+        claimant_name=name[:120],
+        claimant_email=(data.claimant_email or "").strip()[:180],
+        claimant_phone=(data.claimant_phone or "").strip()[:40],
+        requested_changes=changes[:4000],
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return {"id": req.id, "status": req.status, "message": "Request received"}
 
 @app.get("/workers", response_model=list[WorkerOut])
 def get_all(city: Optional[str] = None, db: Session = Depends(get_db)):
