@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from pydantic import BaseModel
 from typing import Optional
@@ -41,14 +41,37 @@ class Worker(Base):
     whatsapp  = Column(String, default="")
     address   = Column(String, default="")
     years_exp = Column(Integer, default=0)
+    service_details = Column(String, default="")
+    service_area = Column(String, default="")
+    languages = Column(String, default="[]")
+    availability = Column(String, default="")
 
 Base.metadata.create_all(bind=engine)
+
+# Keep the existing database compatible with the richer profile model.
+# SQLAlchemy's create_all() does not add columns to an existing table.
+def ensure_worker_profile_columns():
+    inspector = inspect(engine)
+    existing = {c["name"] for c in inspector.get_columns("workers")}
+    additions = {
+        "service_details": "VARCHAR",
+        "service_area": "VARCHAR",
+        "languages": "VARCHAR",
+        "availability": "VARCHAR",
+    }
+    with engine.begin() as conn:
+        for name, sql_type in additions.items():
+            if name not in existing:
+                conn.execute(text(f'ALTER TABLE workers ADD COLUMN "{name}" {sql_type}'))
+
+ensure_worker_profile_columns()
 
 class WorkerOut(BaseModel):
     id: int; name: str; service: str; city: str
     rating: float; reviews: int; verified: bool
     bio: str; tags: list[str]; phone: str; whatsapp: str
     address: str; years_exp: int
+    service_details: str; service_area: str; languages: list[str]; availability: str
     model_config = {"from_attributes": True}
 
 class WorkerCreate(BaseModel):
@@ -56,6 +79,7 @@ class WorkerCreate(BaseModel):
     rating: float = 0.0; reviews: int = 0; verified: bool = False
     bio: str = ""; tags: list[str] = []
     phone: str = ""; whatsapp: str = ""; address: str = ""; years_exp: int = 0
+    service_details: str = ""; service_area: str = ""; languages: list[str] = []; availability: str = ""
 
 app = FastAPI(title="Snay3i.ma API", version="1.0.0")
 app.add_middleware(CORSMiddleware,
@@ -927,7 +951,9 @@ def serialize(w):
         rating=w.rating, reviews=w.reviews, verified=w.verified,
         bio=w.bio, tags=json.loads(w.tags) if w.tags else [],
         phone=w.phone or "", whatsapp=w.whatsapp or "",
-        address=w.address or "", years_exp=w.years_exp if w.years_exp is not None else 0)
+        address=w.address or "", years_exp=w.years_exp if w.years_exp is not None else 0,
+        service_details=w.service_details or "", service_area=w.service_area or "",
+        languages=json.loads(w.languages) if w.languages else [], availability=w.availability or "")
 
 @app.get("/")
 def root(): return {"message": "Snay3i.ma API — صنايعي.ما"}
@@ -1031,6 +1057,7 @@ def create_worker(data: WorkerCreate, db: Session = Depends(get_db)):
     d["reviews"] = 0
     d["verified"] = False
     d["tags"] = json.dumps(d["tags"])
+    d["languages"] = json.dumps(d["languages"])
     w = Worker(**d)
     db.add(w)
     db.commit()
