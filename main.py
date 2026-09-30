@@ -45,6 +45,8 @@ class Worker(Base):
     service_area = Column(String, default="")
     languages = Column(String, default="[]")
     availability = Column(String, default="")
+    # Only profiles with enough first-party detail are exposed by the public directory.
+    content_ready = Column(Boolean, default=False)
 
 Base.metadata.create_all(bind=engine)
 
@@ -58,6 +60,7 @@ def ensure_worker_profile_columns():
         "service_area": "VARCHAR",
         "languages": "VARCHAR",
         "availability": "VARCHAR",
+        "content_ready": "BOOLEAN NOT NULL DEFAULT FALSE",
     }
     with engine.begin() as conn:
         for name, sql_type in additions.items():
@@ -65,6 +68,14 @@ def ensure_worker_profile_columns():
                 conn.execute(text(f'ALTER TABLE workers ADD COLUMN "{name}" {sql_type}'))
 
 ensure_worker_profile_columns()
+
+# Preserve any profiles already enriched through the new registration flow.
+with engine.begin() as conn:
+    conn.execute(text(
+        'UPDATE workers SET content_ready = TRUE '
+        'WHERE COALESCE(service_details, '') <> '' '
+        'AND COALESCE(service_area, '') <> '''
+    ))
 
 class ProfileUpdateRequest(Base):
     __tablename__ = "profile_update_requests"
@@ -946,6 +957,76 @@ SEED = [
   {"name":"Soudeur Hicham Sale 2","service":"welder","city":"Sale","rating":4.5,"reviews":65,"verified":True,"bio":"Soudeur ferronnerie. Portails, grilles, garde-corps sur mesure. Sale.","tags":["Portails", "Grilles", "Sur mesure"],"phone":"0661-010551","whatsapp":"212661010551","address":"Sale","years_exp":17},
 ]
 
+CURATED_PROFILES = [
+  {"name":"Plombier Oujda","service":"plumber","city":"Oujda","rating":0.0,"reviews":0,"verified":False,"bio":"Service plomberie à Oujda.","tags":[],"phone":"0662516868","whatsapp":"212662516868","address":"Oujda","years_exp":0,"service_details":"Service plomberie à Oujda.","service_area":"Oujda","languages":"[]","availability":""},
+  {"name":"Plombier Oujda Sidi Yahya","service":"plumber","city":"Oujda","rating":0.0,"reviews":0,"verified":False,"bio":"Service plomberie à Oujda.","tags":[],"phone":"0642364801","whatsapp":"212642364801","address":"Oujda","years_exp":0,"service_details":"Service plomberie à Oujda.","service_area":"Oujda","languages":"[]","availability":""},
+  {"name":"Bellotrav Serrurier","service":"locksmith","city":"Meknes","rating":0.0,"reviews":0,"verified":False,"bio":"Service serrurerie à Meknes.","tags":[],"phone":"0674026831","whatsapp":"212674026831","address":"Meknes","years_exp":0,"service_details":"Service serrurerie à Meknes.","service_area":"Meknes","languages":"[]","availability":""},
+  {"name":"AutoKeys Meknes","service":"locksmith","city":"Meknes","rating":0.0,"reviews":0,"verified":False,"bio":"Reproduction de clés et serrurerie à Meknes.","tags":[],"phone":"0681724353","whatsapp":"212681724353","address":"Meknes","years_exp":0,"service_details":"Reproduction de clés et serrurerie à Meknes.","service_area":"Meknes","languages":"[]","availability":""},
+  {"name":"Mafatih Ouislane Meknes","service":"locksmith","city":"Meknes","rating":0.0,"reviews":0,"verified":False,"bio":"Serrurerie et reproduction de clés à Meknes.","tags":[],"phone":"0671110104","whatsapp":"212671110104","address":"Meknes","years_exp":0,"service_details":"Serrurerie et reproduction de clés à Meknes.","service_area":"Meknes","languages":"[]","availability":""},
+  {"name":"Reparation Serrures Meknes","service":"locksmith","city":"Meknes","rating":0.0,"reviews":0,"verified":False,"bio":"Réparation de serrures et clés à Meknes.","tags":[],"phone":"0660786051","whatsapp":"212660786051","address":"Meknes","years_exp":0,"service_details":"Réparation de serrures et clés à Meknes.","service_area":"Meknes","languages":"[]","availability":""},
+  {"name":"Serrurier Casablanca Verdin","service":"locksmith","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service serrurerie à Casablanca.","tags":[],"phone":"0674710559","whatsapp":"212674710559","address":"Verdin, Casablanca","years_exp":0,"service_details":"Service serrurerie à Casablanca.","service_area":"Verdin, Casablanca","languages":"[]","availability":""},
+  {"name":"Serrurier Casablanca Anfa","service":"locksmith","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service serrurerie à Casablanca.","tags":[],"phone":"0668971352","whatsapp":"212668971352","address":"Place Marrakech, Anfa, Casablanca","years_exp":0,"service_details":"Service serrurerie à Casablanca.","service_area":"Place Marrakech, Anfa, Casablanca","languages":"[]","availability":""},
+  {"name":"Serrurier Aziz Casablanca","service":"locksmith","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service serrurerie et urgence à Casablanca, quartier Sbata.","tags":[],"phone":"0611520170","whatsapp":"212611520170","address":"Casablanca","years_exp":0,"service_details":"Service serrurerie et urgence à Casablanca, quartier Sbata.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Serrurier El Harti","service":"locksmith","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service serrurerie à Casablanca, Boulevard Driss El Harti.","tags":[],"phone":"0669144853","whatsapp":"212669144853","address":"Casablanca","years_exp":0,"service_details":"Service serrurerie à Casablanca, Boulevard Driss El Harti.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Abdo Serrurier","service":"locksmith","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service serrurerie à Casablanca.","tags":[],"phone":"0668122319","whatsapp":"212668122319","address":"Casablanca","years_exp":0,"service_details":"Service serrurerie à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Ben Bihi Serrurerie","service":"locksmith","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service serrurerie à Casablanca, Avenue Zerktouni.","tags":[],"phone":"0661143945","whatsapp":"212661143945","address":"Casablanca","years_exp":0,"service_details":"Service serrurerie à Casablanca, Avenue Zerktouni.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Dierre Serrures Casablanca","service":"locksmith","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Serrures et solutions de sécurité à Casablanca.","tags":[],"phone":"0661549557","whatsapp":"212661549557","address":"Casablanca","years_exp":0,"service_details":"Serrures et solutions de sécurité à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Pro-Lock El Ouajdi","service":"locksmith","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service serrurerie à Casablanca.","tags":[],"phone":"0625318565","whatsapp":"212625318565","address":"Casablanca","years_exp":0,"service_details":"Service serrurerie à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Programmation Cle Casablanca","service":"locksmith","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Programmation et reproduction de clés à Casablanca.","tags":[],"phone":"0601545377","whatsapp":"212601545377","address":"Casablanca","years_exp":0,"service_details":"Programmation et reproduction de clés à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Abderrahim depan","service":"locksmith","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Serrurerie, ouverture et réparation de serrures à Casablanca.","tags":[],"phone":"0707766410","whatsapp":"0707766410","address":"Rte Moulay Thami, Casablanca","years_exp":0,"service_details":"Serrurerie, ouverture et réparation de serrures à Casablanca.","service_area":"Rte Moulay Thami, Casablanca","languages":"[]","availability":""},
+  {"name":"Bricoleur Marrakech","service":"handyman","city":"Marrakech","rating":0.0,"reviews":0,"verified":False,"bio":"Service bricolage et réparations à Marrakech.","tags":[],"phone":"0694557776","whatsapp":"212694557776","address":"Marrakech","years_exp":0,"service_details":"Service bricolage et réparations à Marrakech.","service_area":"Marrakech","languages":"[]","availability":""},
+  {"name":"Allo Zain Multiservices","service":"handyman","city":"Marrakech","rating":0.0,"reviews":0,"verified":False,"bio":"Multiservices, nettoyage, déménagement et plomberie à Marrakech.","tags":[],"phone":"0661885592","whatsapp":"212661885592","address":"Marrakech","years_exp":0,"service_details":"Multiservices, nettoyage, déménagement et plomberie à Marrakech.","service_area":"Marrakech","languages":"[]","availability":""},
+  {"name":"Baticomplex Carrelage Marrakech","service":"tiler","city":"Marrakech","rating":0.0,"reviews":0,"verified":False,"bio":"Construction, rénovation et pose de carrelage, parquet et sanitaire à Marrakech.","tags":[],"phone":"0525011749","whatsapp":"212525011749","address":"Marrakech","years_exp":0,"service_details":"Construction, rénovation et pose de carrelage, parquet et sanitaire à Marrakech.","service_area":"Marrakech","languages":"[]","availability":""},
+  {"name":"Carreaux des Suds Marrakech","service":"tiler","city":"Marrakech","rating":0.0,"reviews":0,"verified":False,"bio":"Pose de carrelage et zellige à Marrakech, Sidi Ghanem.","tags":[],"phone":"0660607755","whatsapp":"212660607755","address":"Marrakech","years_exp":0,"service_details":"Pose de carrelage et zellige à Marrakech, Sidi Ghanem.","service_area":"Marrakech","languages":"[]","availability":""},
+  {"name":"Bricoleur Casablanca Express","service":"handyman","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service bricolage et petites réparations à Casablanca.","tags":[],"phone":"0675822084","whatsapp":"212675822084","address":"Casablanca","years_exp":0,"service_details":"Service bricolage et petites réparations à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"3A Services Casablanca","service":"handyman","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service multiservice et bricolage à Casablanca.","tags":[],"phone":"0680568494","whatsapp":"212680568494","address":"Casablanca","years_exp":0,"service_details":"Service multiservice et bricolage à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Cle et Electromenager Mousaab","service":"locksmith","city":"Oujda","rating":0.0,"reviews":0,"verified":False,"bio":"Service serrurerie à Oujda.","tags":[],"phone":"0637614537","whatsapp":"212637614537","address":"Oujda","years_exp":0,"service_details":"Service serrurerie à Oujda.","service_area":"Oujda","languages":"[]","availability":""},
+  {"name":"CodeCle Oujda","service":"locksmith","city":"Oujda","rating":0.0,"reviews":0,"verified":False,"bio":"Serrurerie et programmation de clés à Oujda.","tags":[],"phone":"0672840037","whatsapp":"212672840037","address":"Oujda","years_exp":0,"service_details":"Serrurerie et programmation de clés à Oujda.","service_area":"Oujda","languages":"[]","availability":""},
+  {"name":"Jaouadkey Oujda","service":"locksmith","city":"Oujda","rating":0.0,"reviews":0,"verified":False,"bio":"Reproduction de clés et serrurerie à Oujda.","tags":[],"phone":"0628661455","whatsapp":"212628661455","address":"Oujda","years_exp":0,"service_details":"Reproduction de clés et serrurerie à Oujda.","service_area":"Oujda","languages":"[]","availability":""},
+  {"name":"Sobeca","service":"plumber","city":"Kenitra","rating":0.0,"reviews":0,"verified":False,"bio":"Plomberie et construction à Kenitra.","tags":[],"phone":"0537361629","whatsapp":"212537361629","address":"Kenitra","years_exp":0,"service_details":"Plomberie et construction à Kenitra.","service_area":"Kenitra","languages":"[]","availability":""},
+  {"name":"Water Sebou","service":"plumber","city":"Kenitra","rating":0.0,"reviews":0,"verified":False,"bio":"Service plomberie à Kenitra.","tags":[],"phone":"0537365759","whatsapp":"212537365759","address":"Kenitra","years_exp":0,"service_details":"Service plomberie à Kenitra.","service_area":"Kenitra","languages":"[]","availability":""},
+  {"name":"HVNET Nettoyage Casablanca","service":"cleaner","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Nettoyage, ménage, fin de chantier et nettoyage industriel à Casablanca.","tags":[],"phone":"0666560650","whatsapp":"212666560650","address":"Casablanca","years_exp":0,"service_details":"Nettoyage, ménage, fin de chantier et nettoyage industriel à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"NSS Nettoyage Casablanca","service":"cleaner","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Nettoyage, ménage, nettoyage industriel et fin de chantier à Casablanca.","tags":[],"phone":"0630983012","whatsapp":"212630983012","address":"Casablanca","years_exp":0,"service_details":"Nettoyage, ménage, nettoyage industriel et fin de chantier à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Winbest Nettoyage Casablanca","service":"cleaner","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Nettoyage professionnel et services de ménage à Casablanca.","tags":[],"phone":"0644271049","whatsapp":"212644271049","address":"Casablanca","years_exp":0,"service_details":"Nettoyage professionnel et services de ménage à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Nettoyage Vitres Casablanca","service":"cleaner","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Nettoyage industriel, vitres et moquettes à Casablanca.","tags":[],"phone":"0613958063","whatsapp":"212613958063","address":"Casablanca","years_exp":0,"service_details":"Nettoyage industriel, vitres et moquettes à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Nettoyage Industriel Casablanca","service":"cleaner","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service de nettoyage industriel à Casablanca.","tags":[],"phone":"0694931487","whatsapp":"212694931487","address":"Casablanca","years_exp":0,"service_details":"Service de nettoyage industriel à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Wash Express Casablanca","service":"cleaner","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Service lavage et nettoyage à Casablanca.","tags":[],"phone":"0663149437","whatsapp":"212663149437","address":"Casablanca","years_exp":0,"service_details":"Service lavage et nettoyage à Casablanca.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"2E Services Nettoyage Casablanca","service":"cleaner","city":"Casablanca","rating":0.0,"reviews":0,"verified":False,"bio":"Nettoyage et entretien à Casablanca, Bourgogne.","tags":[],"phone":"0698767611","whatsapp":"212698767611","address":"Casablanca","years_exp":0,"service_details":"Nettoyage et entretien à Casablanca, Bourgogne.","service_area":"Casablanca","languages":"[]","availability":""},
+  {"name":"Ferronnier Marrakech","service":"welder","city":"Marrakech","rating":0.0,"reviews":0,"verified":False,"bio":"Service ferronnerie à Marrakech.","tags":[],"phone":"0666453716","whatsapp":"212666453716","address":"Al Massira, Marrakech","years_exp":0,"service_details":"Service ferronnerie à Marrakech.","service_area":"Al Massira, Marrakech","languages":"[]","availability":""},
+  {"name":"Ferronnier Marrakech Sidi Boudchich","service":"welder","city":"Marrakech","rating":0.0,"reviews":0,"verified":False,"bio":"Ferronnerie et fabrication sur mesure à Marrakech.","tags":[],"phone":"0668513785","whatsapp":"212668513785","address":"Sidi Boudchich, Marrakech","years_exp":0,"service_details":"Ferronnerie et fabrication sur mesure à Marrakech.","service_area":"Sidi Boudchich, Marrakech","languages":"[]","availability":""},
+]
+
+def seed_curated_profiles():
+    """Keep only the small, transparent directory corpus on the public API.
+    Legacy seed fixtures remain in source history but are not exposed unless
+    a profile has been explicitly enriched/approved for publication.
+    """
+    db = SessionLocal()
+    try:
+        for item in CURATED_PROFILES:
+            existing = db.query(Worker).filter(
+                Worker.name.ilike(item["name"]),
+                Worker.phone == item["phone"]
+            ).first()
+            if existing:
+                existing.content_ready = True
+                if not existing.service_details:
+                    existing.service_details = item["service_details"]
+                if not existing.service_area:
+                    existing.service_area = item["service_area"]
+                # Legacy synthetic reputation claims must not survive curation.
+                existing.rating = 0.0
+                existing.reviews = 0
+                existing.verified = False
+            else:
+                db.add(Worker(**item, tags=json.dumps(item["tags"])))
+        db.commit()
+    finally:
+        db.close()
+
+seed_curated_profiles()
+
+# Legacy synthetic SEED fixture retained only for historical reference. It is not executed.
 def seed_db():
     db = SessionLocal()
     try:
@@ -1014,7 +1095,7 @@ def search_workers(
     min_rating: Optional[float] = None,
     db: Session = Depends(get_db)
 ):
-    query = db.query(Worker)
+    query = db.query(Worker).filter(Worker.content_ready == True)
     if q:
         like = f"%{q}%"
         query = query.filter(
@@ -1036,7 +1117,7 @@ def search_workers(
 
 @app.get("/worker/{wid}", response_model=WorkerOut)
 def get_worker_by_id(wid: int, db: Session = Depends(get_db)):
-    w = db.query(Worker).filter(Worker.id == wid).first()
+    w = db.query(Worker).filter(Worker.id == wid, Worker.content_ready == True).first()
     if not w: raise HTTPException(404, "Worker not found")
     return serialize(w)
 
@@ -1065,13 +1146,13 @@ def create_profile_update_request(data: ProfileUpdateRequestIn, db: Session = De
 
 @app.get("/workers", response_model=list[WorkerOut])
 def get_all(city: Optional[str] = None, db: Session = Depends(get_db)):
-    q = db.query(Worker)
+    q = db.query(Worker).filter(Worker.content_ready == True)
     if city: q = q.filter(Worker.city.ilike(city))
     return [serialize(w) for w in q.all()]
 
 @app.get("/workers/{service}", response_model=list[WorkerOut])
 def get_by_service(service: str, city: Optional[str] = None, db: Session = Depends(get_db)):
-    q = db.query(Worker).filter(Worker.service.ilike(service))
+    q = db.query(Worker).filter(Worker.service.ilike(service), Worker.content_ready == True)
     if city: q = q.filter(Worker.city.ilike(city))
     return [serialize(w) for w in q.all()]  # returns [] instead of 404 when empty
 
@@ -1084,6 +1165,9 @@ def create_worker(data: WorkerCreate, db: Session = Depends(get_db)):
         raise HTTPException(400, "Name is too short")
     if len(digits) not in (10, 12, 14):
         raise HTTPException(400, "Phone number must be a valid Moroccan local or international number")
+
+    if not (data.service_details or "").strip() or not (data.service_area or "").strip():
+        raise HTTPException(400, "Service details and service area are required before publication")
 
     duplicate = db.query(Worker).filter(
         Worker.name.ilike(name),
@@ -1099,6 +1183,7 @@ def create_worker(data: WorkerCreate, db: Session = Depends(get_db)):
     d["rating"] = 0.0
     d["reviews"] = 0
     d["verified"] = False
+    d["content_ready"] = True
     d["tags"] = json.dumps(d["tags"])
     d["languages"] = json.dumps(d["languages"])
     w = Worker(**d)
