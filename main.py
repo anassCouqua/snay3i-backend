@@ -71,11 +71,12 @@ ensure_worker_profile_columns()
 
 # Preserve any profiles already enriched through the new registration flow.
 with engine.begin() as conn:
-    conn.execute(text(
-        'UPDATE workers SET content_ready = TRUE '
-        'WHERE COALESCE(service_details, '') <> '' '
-        'AND COALESCE(service_area, '') <> '''
-    ))
+    conn.execute(text("""
+        UPDATE workers
+        SET content_ready = TRUE
+        WHERE COALESCE(service_details, '') <> ''
+          AND COALESCE(service_area, '') <> ''
+    """))
 
 class ProfileUpdateRequest(Base):
     __tablename__ = "profile_update_requests"
