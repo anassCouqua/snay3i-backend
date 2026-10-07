@@ -1092,6 +1092,7 @@ CATEGORY_META = {
 def get_categories(db: Session = Depends(get_db)):
     from sqlalchemy import func
     counts = dict(db.query(Worker.service, func.count(Worker.id))
+                    .filter(Worker.content_ready == True, Worker.publication_status == "approved")
                     .group_by(Worker.service).all())
     return [
         {"id": sid, "count": counts.get(sid, 0), **meta}
@@ -1228,36 +1229,6 @@ def create_worker(data: WorkerCreate, db: Session = Depends(get_db)):
     return serialize(w)
 
 
-@app.post("/admin/fix-verified-once")
-def fix_verified_once(db: Session = Depends(get_db)):
-    """
-    One-time migration: unmark 'verified' on auto-generated workers.
-    Auto-generated workers have a hyphen in their phone number (e.g. 0661-010528).
-    Real scraped workers have plain phone numbers with no hyphen.
-    DELETE THIS ENDPOINT after running it once.
-    """
-    workers = db.query(Worker).filter(Worker.verified == True).all()
-    fixed = 0
-    for w in workers:
-        if "-" in (w.phone or ""):
-            w.verified = False
-            fixed += 1
-    db.commit()
-    total_verified_before = len(workers)
-    return {
-        "status": "done",
-        "total_were_verified": total_verified_before,
-        "unmarked_as_synthetic": fixed,
-        "remaining_real_verified": total_verified_before - fixed
-    }
-
-
-@app.get("/admin/db-check")
-def db_check():
-    url_str = str(engine.url)
-    masked = url_str.split('@')[0].split('://')[0] + '://...@' + url_str.split('@')[-1] if '@' in url_str else url_str
-    return {"engine_dialect": engine.dialect.name, "masked_url": masked}
-
 @app.delete("/workers/{wid}", status_code=204)
 def delete_worker(wid: int, db: Session = Depends(get_db)):
     w = db.query(Worker).filter(Worker.id == wid).first()
@@ -1315,6 +1286,7 @@ class Review(Base):
     rating = Column(Integer, nullable=False)
     comment = Column(String, nullable=False)
     created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    status = Column(String, default="pending", index=True)
 
 class ReviewIn(BaseModel):
     worker_id: int
@@ -1333,7 +1305,10 @@ class ReviewOut(BaseModel):
 
 @app.get("/reviews/{worker_id}", response_model=list[ReviewOut])
 def get_reviews(worker_id: int, db: Session = Depends(get_db)):
-    return db.query(Review).filter(Review.worker_id == worker_id).order_by(Review.id.desc()).all()
+    return db.query(Review).filter(
+        Review.worker_id == worker_id,
+        Review.status == "approved",
+    ).order_by(Review.id.desc()).all()
 
 @app.post("/reviews", response_model=ReviewOut, status_code=201)
 def add_review(data: ReviewIn, db: Session = Depends(get_db)):
@@ -1356,6 +1331,7 @@ def add_review(data: ReviewIn, db: Session = Depends(get_db)):
         author=author[:120],
         rating=data.rating,
         comment=comment[:2000],
+        status="pending",
     )
     db.add(review)
     db.commit()
