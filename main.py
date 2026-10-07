@@ -1288,6 +1288,16 @@ class Review(Base):
     created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
     status = Column(String, default="pending", index=True)
 
+# SQLAlchemy create_all() does not add columns to an existing reviews table.
+def ensure_review_status_column():
+    inspector = inspect(engine)
+    existing = {col["name"] for col in inspector.get_columns("reviews")}
+    if "status" not in existing:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE reviews ADD COLUMN status VARCHAR NOT NULL DEFAULT 'pending'"))
+
+ensure_review_status_column()
+
 class ReviewIn(BaseModel):
     worker_id: int
     author: str
