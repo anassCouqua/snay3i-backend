@@ -124,6 +124,34 @@ class ProfileSubmissionOut(BaseModel):
     status: str
     message: str
 
+class QuoteRequest(Base):
+    __tablename__ = "quote_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    worker_id = Column(Integer, nullable=False, index=True)
+    requester_name = Column(String, nullable=False)
+    requester_phone = Column(String, nullable=False)
+    requester_email = Column(String, default="")
+    request_text = Column(String, nullable=False)
+    preferred_timing = Column(String, default="")
+    submitted_at = Column(String, default=lambda: __import__("datetime").datetime.utcnow().isoformat())
+    status = Column(String, default="pending", index=True)
+    source = Column(String, default="profile")
+
+class QuoteRequestIn(BaseModel):
+    worker_id: int
+    requester_name: str
+    requester_phone: str
+    requester_email: str = ""
+    request_text: str
+    preferred_timing: str = ""
+    website: str = ""
+
+class QuoteRequestOut(BaseModel):
+    id: int
+    worker_id: int
+    status: str
+    message: str
+
 app = FastAPI(title="Snay3i.ma API", version="1.0.0")
 app.add_middleware(CORSMiddleware,
     allow_origins=["*"],
@@ -1158,6 +1186,46 @@ def create_profile_update_request(data: ProfileUpdateRequestIn, db: Session = De
     db.refresh(req)
     return {"id": req.id, "status": req.status, "message": "Request received"}
 
+
+@app.post("/quote-requests", response_model=QuoteRequestOut, status_code=201)
+def create_quote_request(data: QuoteRequestIn, db: Session = Depends(get_db)):
+    if (data.website or "").strip():
+        raise HTTPException(400, "Invalid request")
+    name = (data.requester_name or "").strip()
+    phone = (data.requester_phone or "").strip()
+    request_text = (data.request_text or "").strip()
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if len(name) < 2 or len(digits) not in (10, 12, 14):
+        raise HTTPException(400, "Please provide your name and a valid Moroccan phone number")
+    if len(request_text) < 15:
+        raise HTTPException(400, "Please describe the work you need")
+    worker = db.query(Worker).filter(
+        Worker.id == data.worker_id,
+        Worker.content_ready == True,
+        Worker.publication_status == "approved",
+    ).first()
+    if not worker:
+        raise HTTPException(404, "Worker not found")
+
+    req = QuoteRequest(
+        worker_id=worker.id,
+        requester_name=name[:120],
+        requester_phone=phone[:40],
+        requester_email=(data.requester_email or "").strip()[:180],
+        request_text=request_text[:4000],
+        preferred_timing=(data.preferred_timing or "").strip()[:120],
+        status="pending",
+        source="profile",
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return QuoteRequestOut(
+        id=req.id,
+        worker_id=worker.id,
+        status=req.status,
+        message="Quote request received",
+    )
 
 @app.post("/profile-submissions", response_model=ProfileSubmissionOut, status_code=201)
 def create_profile_submission(data: ProfileSubmissionIn, db: Session = Depends(get_db)):
