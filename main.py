@@ -22,6 +22,7 @@ else:
         pool_pre_ping=True,
     )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+print(f"Snay3i database: {engine.dialect.name} ({engine.url.host or 'local'})")
 
 class Base(DeclarativeBase):
     pass
