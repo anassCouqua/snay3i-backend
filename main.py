@@ -45,7 +45,8 @@ class Worker(Base):
     service_area = Column(String, default="")
     languages = Column(String, default="[]")
     availability = Column(String, default="")
-    # Only profiles with enough first-party detail are exposed by the public directory.
+    # Public profiles must be explicitly approved; submissions remain private until reviewed.
+    publication_status = Column(String, default="pending", index=True)
     content_ready = Column(Boolean, default=False)
 
 Base.metadata.create_all(bind=engine)
@@ -60,6 +61,7 @@ def ensure_worker_profile_columns():
         "service_area": "VARCHAR",
         "languages": "VARCHAR",
         "availability": "VARCHAR",
+        "publication_status": "VARCHAR NOT NULL DEFAULT 'pending'",
         "content_ready": "BOOLEAN NOT NULL DEFAULT FALSE",
     }
     with engine.begin() as conn:
@@ -68,15 +70,6 @@ def ensure_worker_profile_columns():
                 conn.execute(text(f'ALTER TABLE workers ADD COLUMN "{name}" {sql_type}'))
 
 ensure_worker_profile_columns()
-
-# Preserve any profiles already enriched through the new registration flow.
-with engine.begin() as conn:
-    conn.execute(text("""
-        UPDATE workers
-        SET content_ready = TRUE
-        WHERE COALESCE(service_details, '') <> ''
-          AND COALESCE(service_area, '') <> ''
-    """))
 
 class ProfileUpdateRequest(Base):
     __tablename__ = "profile_update_requests"
@@ -112,6 +105,24 @@ class ProfileUpdateRequestIn(BaseModel):
     claimant_email: str = ""
     claimant_phone: str = ""
     requested_changes: str
+
+class ProfileSubmission(Base):
+    __tablename__ = "profile_submissions"
+    id = Column(Integer, primary_key=True, index=True)
+    worker_id = Column(Integer, nullable=False, index=True)
+    submitted_at = Column(String, default=lambda: __import__("datetime").datetime.utcnow().isoformat())
+    status = Column(String, default="pending")
+    acquisition_source = Column(String, default="direct")
+
+class ProfileSubmissionIn(BaseModel):
+    worker_id: int
+    acquisition_source: str = "direct"
+
+class ProfileSubmissionOut(BaseModel):
+    id: int
+    worker_id: int
+    status: str
+    message: str
 
 app = FastAPI(title="Snay3i.ma API", version="1.0.0")
 app.add_middleware(CORSMiddleware,
@@ -1010,6 +1021,7 @@ def seed_curated_profiles():
                 Worker.phone == item["phone"]
             ).first()
             if existing:
+                existing.publication_status = "approved"
                 existing.content_ready = True
                 if not existing.service_details:
                     existing.service_details = item["service_details"]
@@ -1020,7 +1032,7 @@ def seed_curated_profiles():
                 existing.reviews = 0
                 existing.verified = False
             else:
-                db.add(Worker(**item, tags=json.dumps(item["tags"])))
+                db.add(Worker(**item, tags=json.dumps(item["tags"]), publication_status="approved", content_ready=True))
         db.commit()
     finally:
         db.close()
@@ -1096,7 +1108,7 @@ def search_workers(
     min_rating: Optional[float] = None,
     db: Session = Depends(get_db)
 ):
-    query = db.query(Worker).filter(Worker.content_ready == True)
+    query = db.query(Worker).filter(Worker.content_ready == True, Worker.publication_status == "approved")
     if q:
         like = f"%{q}%"
         query = query.filter(
@@ -1118,7 +1130,7 @@ def search_workers(
 
 @app.get("/worker/{wid}", response_model=WorkerOut)
 def get_worker_by_id(wid: int, db: Session = Depends(get_db)):
-    w = db.query(Worker).filter(Worker.id == wid, Worker.content_ready == True).first()
+    w = db.query(Worker).filter(Worker.id == wid, Worker.content_ready == True, Worker.publication_status == "approved").first()
     if not w: raise HTTPException(404, "Worker not found")
     return serialize(w)
 
@@ -1145,15 +1157,36 @@ def create_profile_update_request(data: ProfileUpdateRequestIn, db: Session = De
     db.refresh(req)
     return {"id": req.id, "status": req.status, "message": "Request received"}
 
+
+@app.post("/profile-submissions", response_model=ProfileSubmissionOut, status_code=201)
+def create_profile_submission(data: ProfileSubmissionIn, db: Session = Depends(get_db)):
+    worker = db.query(Worker).filter(Worker.id == data.worker_id).first()
+    if not worker:
+        raise HTTPException(404, "Worker not found")
+    submission = ProfileSubmission(
+        worker_id=data.worker_id,
+        acquisition_source=(data.acquisition_source or "direct")[:120],
+        status="pending",
+    )
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+    return ProfileSubmissionOut(
+        id=submission.id,
+        worker_id=worker.id,
+        status=submission.status,
+        message="Profile submitted for review",
+    )
+
 @app.get("/workers", response_model=list[WorkerOut])
 def get_all(city: Optional[str] = None, db: Session = Depends(get_db)):
-    q = db.query(Worker).filter(Worker.content_ready == True)
+    q = db.query(Worker).filter(Worker.content_ready == True, Worker.publication_status == "approved")
     if city: q = q.filter(Worker.city.ilike(city))
     return [serialize(w) for w in q.all()]
 
 @app.get("/workers/{service}", response_model=list[WorkerOut])
 def get_by_service(service: str, city: Optional[str] = None, db: Session = Depends(get_db)):
-    q = db.query(Worker).filter(Worker.service.ilike(service), Worker.content_ready == True)
+    q = db.query(Worker).filter(Worker.service.ilike(service), Worker.content_ready == True, Worker.publication_status == "approved")
     if city: q = q.filter(Worker.city.ilike(city))
     return [serialize(w) for w in q.all()]  # returns [] instead of 404 when empty
 
@@ -1184,7 +1217,8 @@ def create_worker(data: WorkerCreate, db: Session = Depends(get_db)):
     d["rating"] = 0.0
     d["reviews"] = 0
     d["verified"] = False
-    d["content_ready"] = True
+    d["content_ready"] = False
+    d["publication_status"] = "pending"
     d["tags"] = json.dumps(d["tags"])
     d["languages"] = json.dumps(d["languages"])
     w = Worker(**d)
@@ -1303,7 +1337,26 @@ def get_reviews(worker_id: int, db: Session = Depends(get_db)):
 
 @app.post("/reviews", response_model=ReviewOut, status_code=201)
 def add_review(data: ReviewIn, db: Session = Depends(get_db)):
-    review = Review(**data.dict())
+    if data.rating < 1 or data.rating > 5:
+        raise HTTPException(400, "Rating must be between 1 and 5")
+    author = (data.author or "").strip()
+    comment = (data.comment or "").strip()
+    if len(author) < 2 or len(comment) < 10:
+        raise HTTPException(400, "Please provide a name and a useful review comment")
+    worker = db.query(Worker).filter(
+        Worker.id == data.worker_id,
+        Worker.content_ready == True,
+        Worker.publication_status == "approved",
+    ).first()
+    if not worker:
+        raise HTTPException(404, "Worker not found")
+    # Reviews remain stored for later moderation; they do not alter public rating totals automatically.
+    review = Review(
+        worker_id=worker.id,
+        author=author[:120],
+        rating=data.rating,
+        comment=comment[:2000],
+    )
     db.add(review)
     db.commit()
     db.refresh(review)
