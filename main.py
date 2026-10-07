@@ -1357,6 +1357,9 @@ class Review(Base):
     created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
     status = Column(String, default="pending", index=True)
 
+# Create the review table first when starting from a fresh database.
+Base.metadata.create_all(bind=engine)
+
 # SQLAlchemy create_all() does not add columns to an existing reviews table.
 def ensure_review_status_column():
     inspector = inspect(engine)
