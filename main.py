@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.exc import NoSuchTableError
 from pydantic import BaseModel
 from typing import Optional
 import json
@@ -1362,8 +1363,20 @@ Base.metadata.create_all(bind=engine)
 
 # SQLAlchemy create_all() does not add columns to an existing reviews table.
 def ensure_review_status_column():
-    inspector = inspect(engine)
-    existing = {col["name"] for col in inspector.get_columns("reviews")}
+    # Never let a missing legacy reviews table prevent the API from starting.
+    # Create the table when absent, then add the status column when upgrading
+    # an existing reviews table that predates moderation.
+    Base.metadata.create_all(bind=engine, tables=[Review.__table__])
+    try:
+        inspector = inspect(engine)
+        existing = {col["name"] for col in inspector.get_columns("reviews")}
+    except NoSuchTableError:
+        # A concurrent schema change or an older database adapter can still
+        # report the table as missing immediately after create_all(). Retry once.
+        Base.metadata.create_all(bind=engine, tables=[Review.__table__])
+        inspector = inspect(engine)
+        existing = {col["name"] for col in inspector.get_columns("reviews")}
+
     if "status" not in existing:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE reviews ADD COLUMN status VARCHAR NOT NULL DEFAULT 'pending'"))
